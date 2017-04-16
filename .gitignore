@@ -27,7 +27,3 @@
 *.exe
 *.out
 *.app
-
-# Doc
-*.html
-*.htm
