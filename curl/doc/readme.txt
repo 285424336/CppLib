@@ -1,0 +1,1 @@
+If you want use static libcurl library, you must define CURL_STATICLIB.
