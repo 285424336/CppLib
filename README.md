@@ -1,5 +1,5 @@
 # CppLib
-Lib for cpp project, all lib can be used foo windows, but only some can be used for linux.<br/>
+Lib for cpp project, all the lib can be used for windows, but only some can be used for linux.<br/>
 *algorithm: WIN/LINUX<br/>
 *args: WIN/LINUX<br/>
 *curl: WIN/LINUX<br/>
