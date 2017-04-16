@@ -24,3 +24,6 @@ For some of them is a wrap of other open source code, so if it has hurt your int
 It is not a complete project, only include the lib src codes, and examples. You can look at the <lib name>/doc for more information of the lib, and <lib name>/doc/sample for the sample code of the lib.
 
 If you have any questions, feel free to contact me.
+
+TEST:
+Every lib a simple test with VS2015 and gun with c++11.
