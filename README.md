@@ -28,12 +28,12 @@ If you have any questions, feel free to contact me.
 Useage:<br/>
 You should download all the package, and put them under the directory like follow:<br/>
 ├─util<br/>
-  ├─algorithm<br/>
-  ├─args<br/>
-  ...<br/>
+>├─algorithm<br/>
+>├─args<br/>
+>...<br/>
 after do that, you should add the compile parameter:<br/>
-  WIN: change the Additional Include Directories, add you util directory location<br/>
-  Linux: add the compile parameter -I "you util directory location"<br/>
+>WIN: change the Additional Include Directories, add you util directory location<br/>
+>Linux: add the compile parameter -I "you util directory location"<br/>
 
 TEST:
 Every lib a simple test with VS2015 and gun with c++11.
