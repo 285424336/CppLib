@@ -36,5 +36,5 @@ after do that, you should add the compile parameter:<br/>
 >WIN: change the Additional Include Directories, add you util directory location<br/>
 >Linux: add the compile parameter -I "you util directory location"<br/>
 
-TEST:
-Every lib a simple test with VS2015 and gun with c++11.
+TEST:<br/>
+Every lib has had a simple test with VS2015 and gun with c++11 std.<br/>
