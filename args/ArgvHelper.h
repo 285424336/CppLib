@@ -38,6 +38,19 @@
 #include <algorithm>
 #include <cstdlib>
 
+#if defined(_MSC_VER)
+#ifndef THROW
+#define THROW(x) throw(...)
+#endif // !THROW
+#elif defined(__GNUC__)
+#ifndef THROW
+#define THROW(x) throw(x)
+#endif // !THROW
+#define _CONSOLE
+#else
+#error unsupported compiler
+#endif
+
 namespace ArgvHelper {
     using namespace std;
 
@@ -69,31 +82,134 @@ namespace ArgvHelper {
     struct is_same<T, T> : public true_type {
     };
 
-    template <typename Target, typename Source, bool Same, bool SrcIsContainer = false>
-    class _lexical_cast {
+    // TEMPLATE CLASS is_signed
+    template<class _Ty1>
+    struct _is_signed
+        : std::false_type
+    {	// determine whether _Ty1 is signed type
+    };
+
+    // TEMPLATE CLASS is_signed
+    template<class _Ty1>
+    struct is_signed : _is_signed<typename std::remove_cv<_Ty1>::type>
+    {
+
+    };
+
+    template<>
+    struct _is_signed<bool>
+        : std::false_type
+    {	// determine whether _Ty1 is signed type
+    };
+
+    template<>
+    struct _is_signed<char>
+        : std::true_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<unsigned char>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<wchar_t>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<signed short>
+        : std::true_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<unsigned short>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<char16_t>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<signed int>
+        : std::true_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<unsigned int>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<char32_t>
+        : std::true_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<signed long>
+        : std::true_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<unsigned long>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<long long>
+        : std::true_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template<>
+    struct _is_signed<unsigned long long>
+        : std::false_type
+    {	// determine whether _Ty is signed type
+    };
+
+    template <typename Target, typename Source, bool Same, bool SrcIsContainer>
+    class _lexical_cast
+    {
     public:
-        static Target cast(const Source &arg) {
+        static Target cast(const Source &arg)
+        {
             Target ret;
             std::stringstream ss;
-            if (!(ss << arg && ss >> ret && ss.eof()))
-                throw std::bad_cast();
-
+            if (std::is_integral<Target>::value && !is_signed<Target>::value && ss.str().size() > 1 && ss.str()[0] == '-') throw std::bad_cast();
+            if (!(ss >> ret && ss.eof() && !ss.fail())) throw std::bad_cast();
             return ret;
         }
     };
 
     template <typename Target, typename Source>
-    class _lexical_cast<Target, Source, true, false> {
+    class _lexical_cast<Target, Source, true, false>
+    {
     public:
-        static Target cast(const Source &arg) {
+        static Target cast(const Source &arg)
+        {
             return arg;
         }
     };
 
     template <typename Source>
-    class _lexical_cast<std::string, Source, false, false> {
+    class _lexical_cast<std::string, Source, false, false>
+    {
     public:
-        static std::string cast(const Source &arg) {
+        static std::string cast(const Source &arg)
+        {
             std::ostringstream ss;
             ss << arg;
             return ss.str();
@@ -101,23 +217,27 @@ namespace ArgvHelper {
     };
 
     template <typename Target>
-    class _lexical_cast<Target, std::string, false, false> {
+    class _lexical_cast<Target, std::string, false, false>
+    {
     public:
-        static Target cast(const std::string &arg) {
+        static Target cast(const std::string &arg)
+        {
             Target ret;
             std::istringstream ss(arg);
-            if (!(ss >> ret && ss.eof()))
-                throw std::bad_cast();
+            if (std::is_integral<Target>::value && !is_signed<Target>::value && ss.str().size() > 1 && ss.str()[0] == '-') throw std::bad_cast();
+            if (!(ss >> ret && ss.eof() && !ss.fail())) throw std::bad_cast();
             return ret;
         }
     };
 
     template <typename Source>
-    class _lexical_cast<std::string, Source, false, true> {
+    class _lexical_cast<std::string, Source, false, true> 
+    {
     public:
         typedef typename is_container<Source>::type type;
 
-        static std::string cast(const Source &arg) {
+        static std::string cast(const Source &arg) 
+        {
             std::ostringstream ss;
             for (auto s : arg)
             {
@@ -127,15 +247,33 @@ namespace ArgvHelper {
         }
     };
 
-    template<typename Target, typename Source>
     /**
-    *convert Source type arg value to Target type value, for example lexical_cast<int>(std::string("1")); convert string "1" to int 1
-    *arg(int): need convert
-    *return: convert result
+    *convert string to other type
+    *Target: the type you want to convert to
+    *Source: the type you want to be converted, it can be every type that can use operator <<
+    *src: the source to be converted
     */
-    Target lexical_cast(const Source &arg)
+    template<typename Target, typename Source>
+    Target lexical_cast(const Source &src)
     {
-        return _lexical_cast<Target, Source, is_same<Target, Source>::value, is_container<Source>::value>::cast(arg);
+        if (std::is_same<typename std::remove_cv<Target>::type, char>::value)
+        {
+            short ret = _lexical_cast<short, typename std::remove_cv<Source>::type
+                , std::is_same<char, typename std::remove_cv<Source>::type>::value, false>::cast(src);
+            if (ret > 127 || ret < -128) throw std::bad_cast();
+            return *(Target*)&ret;
+        }
+        else if (std::is_same<typename std::remove_cv<Target>::type, unsigned char>::value)
+        {
+            unsigned short ret = _lexical_cast<unsigned short, typename std::remove_cv<Source>::type
+                , std::is_same<unsigned char, typename std::remove_cv<Source>::type>::value, false>::cast(src);
+            if (ret > 255) throw std::bad_cast();
+            return *(Target*)&ret;
+        }
+        else
+        {
+            return _lexical_cast<Target, Source, is_same<Target, Source>::value, is_container<Source>::value>::cast(src);
+        }
     }
 
     /**
@@ -243,21 +381,25 @@ namespace ArgvHelper {
     template <class T>
     struct contain_reader<set<T>> {
         set<T> operator()(const std::string &s) {
-            all.insert(default_reader<T>()(s));
+            if (m_max_count == -1 || m_max_count > all.size()) all.insert(default_reader<T>()(s));
             return all;
         }
+        contain_reader(unsigned int max_count = -1) : m_max_count(max_count){}
     private:
         set<T> all;
+        unsigned int  m_max_count;
     };
 
     template <class T>
     struct contain_reader<vector<T>> {
         vector<T> operator()(const std::string &s) {
-            all.push_back(default_reader<T>()(s));
+            if (m_max_count == -1 || m_max_count > all.size()) all.push_back(default_reader<T>()(s));
             return all;
         }
+        contain_reader(unsigned int max_count = -1) : m_max_count(max_count) {}
     private:
         vector<T> all;
+        unsigned int  m_max_count;
     };
 
     class parser {
@@ -483,24 +625,37 @@ namespace ArgvHelper {
                             errors.push_back(std::string("ambiguous short option: -") + argv[i][j - 1]);
                             continue;
                         }
-                        set_option(lookup[argv[i][j - 1]]);
+
+                        if (options[lookup[argv[i][j - 1]]]->has_value())
+                        {
+                            set_option(lookup[argv[i][j - 1]], &argv[i][j]);
+                            last = 0;
+                            break;
+                        }
+                        else
+                        {
+                            set_option(lookup[argv[i][j - 1]]);
+                        }
                     }
 
-                    if (lookup.count(last) == 0) {
-                        errors.push_back(std::string("undefined short option: -") + last);
-                        continue;
-                    }
-                    if (lookup[last] == "") {
-                        errors.push_back(std::string("ambiguous short option: -") + last);
-                        continue;
-                    }
+                    if (last)
+                    {
+                        if (lookup.count(last) == 0) {
+                            errors.push_back(std::string("undefined short option: -") + last);
+                            continue;
+                        }
+                        if (lookup[last] == "") {
+                            errors.push_back(std::string("ambiguous short option: -") + last);
+                            continue;
+                        }
 
-                    if (i + 1 < argc && options[lookup[last]]->has_value()) {
-                        set_option(lookup[last], argv[i + 1]);
-                        i++;
-                    }
-                    else {
-                        set_option(lookup[last]);
+                        if (i + 1 < argc && options[lookup[last]]->has_value()) {
+                            set_option(lookup[last], argv[i + 1]);
+                            i++;
+                        }
+                        else {
+                            set_option(lookup[last]);
+                        }
                     }
                 }
                 else {

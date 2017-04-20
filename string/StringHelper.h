@@ -13,6 +13,18 @@
 
 #define HEX_STR_TO_NUM(c) (((0X40&(c))>>6)*9+(0X0F&(c))) //you must make sure the c is hex str
 
+#if defined(_MSC_VER)
+#ifndef THROW
+#define THROW(x) throw(...)
+#endif // !THROW
+#elif defined(__GNUC__)
+#ifndef THROW
+#define THROW(x) throw(x)
+#endif // !THROW
+#else
+#error unsupported compiler
+#endif
+
 class StringHelper
 {
 public:
@@ -22,6 +34,21 @@ public:
         oct = 1,
         dec = 2,
     };
+
+    // TEMPLATE CLASS is_signed
+    template<class _Ty1>
+    struct _is_signed
+        : std::false_type
+    {	// determine whether _Ty1 is signed type
+    };
+
+    // TEMPLATE CLASS is_signed
+    template<class _Ty1>
+    struct is_signed : _is_signed<typename std::remove_cv<_Ty1>::type>
+    {
+
+    };
+        
 public:
     /**
     *remove the blank at both end of the string
@@ -141,23 +168,37 @@ public:
     /**
     *change wchar to multi char , using specify charactor set to convert
     *wstr(in): the multi need to convert
-    *locale(in): the language of the string£¬use it to encode, chinese is "chs", english is "C"
+    *locale(in): the language of the string£¬use it to encode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C"
     */
     static std::string tochar(const std::wstring &wstr, const char *locale = NULL);
     /**
     *convert string to other type
-    *T1: the type you want to convert to
-    *T2: the type you want to be converted, it can be every type that can use operator <<
-    *str: the str to be converted
+    *Target: the type you want to convert to
+    *Source: the type you want to be converted, it can be every type that can use operator <<
+    *src: the source to be converted
     */
-    template<typename T1, typename T2=std::string>
-    static T1 convert(const T2 &str)
+    template<typename Target, typename Source>
+    static Target convert(const Source src) THROW(std::bad_cast)
     {
-        T1 value;
-        std::stringstream ss;
-        ss << str;
-        ss >> value;
-        return value;
+        if (std::is_same<typename std::remove_cv<Target>::type, char>::value)
+        {
+            short ret = _lexical_cast<short, typename std::remove_cv<Source>::type
+                , std::is_same<char, typename std::remove_cv<Source>::type>::value>::cast(src);
+            if (ret > 127 || ret < -128) throw std::bad_cast();
+            return *(Target*)&ret;
+        }
+        else if (std::is_same<typename std::remove_cv<Target>::type, unsigned char>::value)
+        {
+            unsigned short ret = _lexical_cast<unsigned short, typename std::remove_cv<Source>::type
+                , std::is_same<unsigned char, typename std::remove_cv<Source>::type>::value>::cast(src);
+            if (ret > 255) throw std::bad_cast();
+            return *(Target*)&ret;
+        }
+        else
+        {
+            return _lexical_cast<typename std::remove_cv<Target>::type, typename std::remove_cv<Source>::type
+                , std::is_same<typename std::remove_cv<Target>::type, typename std::remove_cv<Source>::type>::value>::cast(src);
+        }
     }
     /**
     *convert the hex string to its mean byte, like string "12" to byte 18(1*16+2)
@@ -211,6 +252,141 @@ private:
     {
         ostream << std::setfill(fill);
         return ostream;
+    }
+
+    template <typename Target, typename Source, bool Same>
+    class _lexical_cast
+    {
+    public:
+        static Target cast(const Source &arg) THROW(std::bad_cast)
+        {
+            Target ret;
+            std::stringstream ss;
+            ss << arg;
+            if (std::is_integral<Target>::value && !is_signed<Target>::value && ss.str().size() > 1 && ss.str()[0] == '-') throw std::bad_cast();
+            if (!(ss >> ret && ss.eof() && !ss.fail())) throw std::bad_cast();
+            return ret;
+        }
+    };
+};
+
+template<>
+struct StringHelper::_is_signed<bool>
+    : std::false_type
+{	// determine whether _Ty1 is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<char>
+    : std::true_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<unsigned char>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<wchar_t>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<signed short>
+    : std::true_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<unsigned short>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<char16_t>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<signed int>
+    : std::true_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<unsigned int>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<char32_t>
+    : std::true_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<signed long>
+    : std::true_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<unsigned long>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<long long>
+    : std::true_type
+{	// determine whether _Ty is signed type
+};
+
+template<>
+struct StringHelper::_is_signed<unsigned long long>
+    : std::false_type
+{	// determine whether _Ty is signed type
+};
+
+template <typename Target, typename Source>
+class StringHelper::_lexical_cast<Target, Source, true>
+{
+public:
+    static Target cast(const Source &arg)
+    {
+        return arg;
+    }
+};
+
+template <typename Source>
+class StringHelper::_lexical_cast<std::string, Source, false>
+{
+public:
+    static std::string cast(const Source &arg)
+    {
+        std::ostringstream ss;
+        ss << arg;
+        return ss.str();
+    }
+};
+
+template <typename Target>
+class StringHelper::_lexical_cast<Target, std::string, false>
+{
+public:
+    static Target cast(const std::string &arg) THROW(std::bad_cast)
+    {
+        Target ret;
+        std::istringstream ss(arg);
+        if (std::is_integral<Target>::value && !is_signed<Target>::value && ss.str().size() > 1 && ss.str()[0] == '-') throw std::bad_cast();
+        if (!(ss >> ret && ss.eof() && !ss.fail())) throw std::bad_cast();
+        return ret;
     }
 };
 

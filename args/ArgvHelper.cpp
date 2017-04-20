@@ -1,15 +1,13 @@
-#include "ArgvHelper.h"
 #if defined(_MSC_VER)
 #include <windows.h> 
 #include <Dbghelp.h>
 #pragma comment(lib,"dbghelp.lib")    
 #elif defined(__GNUC__)
 #include <cxxabi.h>
-#define _CONSOLE
 #else
 #error unsupported compiler
 #endif
-
+#include "ArgvHelper.h"
 
 #if defined(_MSC_VER)
 /**
