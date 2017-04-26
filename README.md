@@ -3,6 +3,8 @@ Lib for cpp project, all the lib can be used for windows, but only some can be u
 [*algorithm: WIN/LINUX, it is quickly algorithm lib](https://github.com/machenjie/CppLib/tree/master/algorithm)<br/>
 [*args: WIN/LINUX, it is a command line parse class lib](https://github.com/machenjie/CppLib/tree/master/args)<br/>
 [*curl: WIN/LINUX, it is a wrapper of libcurl](https://github.com/machenjie/CppLib/tree/master/curl)<br/>
+[*dll: WIN ONLY, use for load dll from memory](https://github.com/machenjie/CppLib/tree/master/dll)<br/>
+[*event: WIN/LINUX, an simple event engine using closure](https://github.com/machenjie/CppLib/tree/master/event)<br/>
 [*file: WIN/LINUX, it is a file/directory operation lib](https://github.com/machenjie/CppLib/tree/master/file)<br/>
 [*json: WIN/LINUX, it is a json lib, open source code](https://github.com/machenjie/CppLib/tree/master/json)<br/>
 [*kernel32: WIN/LINUX, it is a wrapper of system operation](https://github.com/machenjie/CppLib/tree/master/kernel32)<br/>
