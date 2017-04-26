@@ -540,7 +540,7 @@ size_t FileHelper::GetFileSize(const std::string &file_path)
 */
 std::string FileHelper::GetFileContent(const std::string& file_path)
 {
-    std::ifstream fs(file_path.c_str());
+    std::ifstream fs(file_path, std::ios::binary);
     if (!fs) return "";
     std::ostringstream buffer;
     buffer << fs.rdbuf();

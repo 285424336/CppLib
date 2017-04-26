@@ -70,7 +70,7 @@ struct timezone
 #define DELTA_EPOCH_IN_MICROSECS 11644473600000000ULL
 #endif
 static struct timezone tz = []() {struct timezone ttz; _tzset(); _get_timezone((long*)&ttz.tz_minuteswest); ttz.tz_minuteswest /= 60; _get_daylight(&ttz.tz_dsttime); return ttz; }();
-int gettimeofday(struct timeval *tv, struct timezone *tz)
+inline int gettimeofday(struct timeval *tv, struct timezone *tz)
 {
     FILETIME ft;
     unsigned long long tmpres = 0;

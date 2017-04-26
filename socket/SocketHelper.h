@@ -383,7 +383,7 @@ public:
 /**
 *swap left with rignht
 */
-void swap(SocketHelper &left, SocketHelper &right)
+inline void swap(SocketHelper &left, SocketHelper &right)
 {
     left.swap(right);
 }
