@@ -4,7 +4,7 @@ Lib for cpp project, all the lib can be used for windows, but only some can be u
 [*args: WIN/LINUX, it is a command line parse class lib](https://github.com/machenjie/CppLib/tree/master/args)<br/>
 [*curl: WIN/LINUX, it is a wrapper of libcurl](https://github.com/machenjie/CppLib/tree/master/curl)<br/>
 [*dll: WIN ONLY, use for load dll from memory](https://github.com/machenjie/CppLib/tree/master/dll)<br/>
-[*event: WIN/LINUX, an simple event engine using closure](https://github.com/machenjie/CppLib/tree/master/event)<br/>
+[*event: WIN/LINUX, an simple event hub using closure](https://github.com/machenjie/CppLib/tree/master/event)<br/>
 [*file: WIN/LINUX, it is a file/directory operation lib](https://github.com/machenjie/CppLib/tree/master/file)<br/>
 [*json: WIN/LINUX, it is a json lib, open source code](https://github.com/machenjie/CppLib/tree/master/json)<br/>
 [*kernel32: WIN/LINUX, it is a wrapper of system operation](https://github.com/machenjie/CppLib/tree/master/kernel32)<br/>
@@ -13,6 +13,7 @@ Lib for cpp project, all the lib can be used for windows, but only some can be u
 [*plog: WIN/LINUX, it is a log lib, open source code](https://github.com/machenjie/CppLib/tree/master/plog)<br/>
 [*pugixml: WIN/LINUX, it is a xml parse lib, open source code](https://github.com/machenjie/CppLib/tree/master/pugixml)<br/>
 [*salsa20: WIN/LINUX, it is a salsa20 encrypt/decrypt lib, base on open source code](https://github.com/machenjie/CppLib/tree/master/salsa20)<br/>
+[*service: WIN ONLY, it is a service operation wrapper](https://github.com/machenjie/CppLib/tree/master/service)<br/>
 [*socket: WIN/LINUX, it is a wrapper of socket](https://github.com/machenjie/CppLib/tree/master/socket)<br/>
 [*string: WIN/LINUX, it is a string operation lib](https://github.com/machenjie/CppLib/tree/master/string)<br/>
 [*threadpool: WIN/LINUX, it is a threadpool lib, based on open source code](https://github.com/machenjie/CppLib/tree/master/threadpool)<br/>
