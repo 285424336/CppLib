@@ -1,8 +1,14 @@
 // Kernel32.cpp : Defines the entry point for the console application.
 //
 
-#include <iostream>
+#if defined(_MSC_VER)
 #include <kernel32\Kernel32Helper.h>
+#elif defined(__GNUC__)
+#include <kernel32/Kernel32Helper.h>
+#else
+#error unsupported compiler
+#endif
+#include <iostream>
 #include <string>
 
 void IsWow64ProgramTest()
@@ -62,9 +68,9 @@ void ExecuteCMDAndGetResultTest()
 {
     std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
 #if defined(_MSC_VER) 
-    std::cout << "exec ipconfig /all result: " << Kernel32Helper::ExecuteCMDAndGetResult("ipconfig /all") << std::endl;
+    std::cout << "exec ipconfig /all result: " << Kernel32Helper::ExecuteCMDAndGetResult("ipconfig /all", 1000) << std::endl;
 #elif defined(__GNUC__)  
-    std::cout << "exec ifconfig result: " << Kernel32Helper::ExecuteCMDAndGetResult("ifconfig") << std::endl;
+    std::cout << "exec ifconfig result: " << Kernel32Helper::ExecuteCMDAndGetResult("netstat -n", 5000) << std::endl;
 #else  
 #error unsupported compiler
 #endif 

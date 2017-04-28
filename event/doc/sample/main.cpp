@@ -1,10 +1,10 @@
-// EventEngine.cpp : Defines the entry point for the console application.
+// EventHub.cpp : Defines the entry point for the console application.
 //
 
 #if defined(_MSC_VER)
-#include <event\EventEngine.h>
+#include <event\EventHub.h>
 #elif defined(__GNUC__)
-#include <event/EventEngine.h>
+#include <event/EventHub.h>
 #else
 #error unsupported compiler
 #endif
@@ -39,32 +39,33 @@ void event2(u_int event, void *s)
 
 int main()
 {
-    EventEngine a(100);
+    EventHub a(100);
     TEST b(3);
-    EventEngine::ID id1;
-    EventEngine::ID id2;
-    EventEngine::ID id3;
-    EventEngine::ID id4;
-    EventEngine::ID id5;
+    EventHub::ID id1;
+    EventHub::ID id2;
+    EventHub::ID id3;
+    EventHub::ID id4;
+    EventHub::ID id5;
 
-    EventEngine::ID id6 = a.RegisterEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
-    EventEngine::ID id7 = a.RegisterEvent<int>(1, ::event);
-    EventEngine::ID id8 = a.RegisterEvent<void>(1, ::event2);
+    EventHub::ID id6 = a.SubscribeEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
+    EventHub::ID id7 = a.SubscribeEvent<int>(1, ::event);
+    EventHub::ID id8 = a.SubscribeEvent<void>(1, ::event2);
     while (1)
     {
-        id1 = a.RegisterEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
-        id2 = a.RegisterEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
-        id3 = a.RegisterEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
-        id4 = a.RegisterEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
-        id5 = a.RegisterEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
+        a.ReSetPool(rand()%100);
+        id1 = a.SubscribeEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
+        id2 = a.SubscribeEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
+        id3 = a.SubscribeEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
+        id4 = a.SubscribeEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
+        id5 = a.SubscribeEvent<TEST>(1, std::bind(&TEST::event, b, std::placeholders::_1, std::placeholders::_2));
 
-        a.UnRegisterEvent(1, std::move(id1));
-        a.UnRegisterEvent(1, std::move(id2));
-        a.UnRegisterEvent(1, std::move(id3));
-        a.UnRegisterEvent(1, std::move(id4));
-        a.UnRegisterEvent(1, std::move(id5));
-        //a.UnRegisterEvent(1, std::move(id6));
-        //a.UnRegisterEvent(1, std::move(id7));
+        a.UnSubscribeEvent(1, std::move(id1));
+        a.UnSubscribeEvent(1, std::move(id2));
+        a.UnSubscribeEvent(1, std::move(id3));
+        a.UnSubscribeEvent(1, std::move(id4));
+        a.UnSubscribeEvent(1, std::move(id5));
+        //a.UnSubscribeEvent(1, std::move(id6));
+        //a.UnSubscribeEvent(1, std::move(id7));
         //new std::thread([&b, &a]
         //{
             auto ret = a.DispatchEvent(1, std::move(b));

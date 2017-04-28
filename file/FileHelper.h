@@ -191,6 +191,11 @@ public:
     static std::string GetWinTempPath();
 
     /**
+    *get windows unique %temp% file, C:\Users\%user%\AppData\Local\temp\\xxx.tmp
+    */
+    static std::string GetWinTempFile();
+
+    /**
     *get windows path,
     *type: path type, here is some list
     *      CSIDL_PROGRAM_FILES->C:\Program Files  (C:\PROGRA~1)

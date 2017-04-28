@@ -8,10 +8,19 @@
 #include <tchar.h>
 #include <TlHelp32.h>
 #include <string\StringHelper.h>
+#include <file\FileHelper.h>
 #elif defined(__GNUC__)
 #include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/types.h>
 #include <sys/sysinfo.h>
 #include <string/StringHelper.h>
+#include <file/FileHelper.h>
+#include <future>
 #else
 #error unsupported compiler
 #endif
@@ -148,7 +157,13 @@ public:
         std::string cmd = "ps -ef | awk '{print $2\" \"$8\" \"}' | grep '[/\\ ]" + std::move(pn) + " ' | grep -v grep | awk '{print $1}' | head -1";
         std::string result = ExecuteCMDAndGetResult(cmd);
         if (result.empty()) return 0;
-        return StringHelper::convert<u_int>(result);
+        auto ids = StringHelper::split(result, "\n");
+        for (auto id : ids)
+        {
+            if (id.empty()) continue;
+            return StringHelper::convert<u_int>(id);
+        }
+        return 0;
 #else
 #error unsupported compiler
 #endif
@@ -196,6 +211,7 @@ public:
     /**
     *exec the cmd and get the output of the result
     *cmd(in): the command want to exec
+    *note: it will blocking until the cmd exec complete 
     */
     static std::string ExecuteCMDAndGetResult(const std::string &cmd)
     {
@@ -211,6 +227,123 @@ public:
         }
         pclose(pipe);
         return result;
+    }
+
+    /**
+    *exec the cmd and get the output of the result
+    *cmd(in): the command want to exec
+    *timeout(in): time out in millseconds
+    *note: it will blocking until process exit or timeout.
+    */
+    static std::string ExecuteCMDAndGetResult(const std::string &cmd, u_int timeout)
+    {
+#if defined(_MSC_VER)
+        //Create temp file to store child process's output
+        HANDLE hTmpFile = INVALID_HANDLE_VALUE;
+        std::string szTempFileName = FileHelper::GetWinTempFile();
+        if (szTempFileName.empty()) return "";
+
+        SECURITY_ATTRIBUTES sa;
+        sa.nLength = sizeof(sa);
+        sa.lpSecurityDescriptor = NULL;
+        sa.bInheritHandle = TRUE;
+        hTmpFile = CreateFileA(szTempFileName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+        if (hTmpFile == INVALID_HANDLE_VALUE)
+        {
+            return "";
+        }
+
+        PROCESS_INFORMATION pi;
+        ZeroMemory(&pi, sizeof(pi));
+
+        STARTUPINFOA si;
+        ZeroMemory(&si, sizeof(si));
+        si.cb = sizeof(si);
+        si.hStdOutput = hTmpFile;
+        si.hStdError = hTmpFile;
+        si.dwFlags |= STARTF_USESTDHANDLES;
+        si.dwFlags |= STARTF_USESHOWWINDOW;
+        si.wShowWindow = SW_HIDE;
+        if (::CreateProcessA(NULL,     // No module name (use command line)
+            (LPSTR)cmd.c_str(),     // Command line
+            NULL,                       // Process handle not inheritable
+            NULL,                       // Thread handle not inheritable
+            TRUE,                   // Set handle inheritance to TRUE
+            0,                          // No creation flags
+            NULL,                       // Use parent's environment block
+            NULL,                       // Use parent's starting directory 
+            &si,                        // Pointer to STARTUPINFO structure
+            &pi))                       // Pointer to PROCESS_INFORMATION structure
+        {
+            DWORD ret = WaitForSingleObject(pi.hProcess, timeout);
+            if (ret == WAIT_TIMEOUT)
+            {
+                TerminateProcess(pi.hProcess, 0);
+            }
+            CloseHandle(pi.hProcess);
+            CloseHandle(pi.hThread);
+        }
+
+        CloseHandle(hTmpFile);
+        std::string result = FileHelper::GetFileContent(szTempFileName);
+        FileHelper::Rm(szTempFileName);
+        return result;
+
+#elif defined(__GNUC__)
+        std::string file_name = StringHelper::convert<std::string>(rand()) + StringHelper::convert<std::string>(rand()) + ".tmp";
+        pid_t pid;
+        int status;
+        pid = fork();
+        switch (pid)
+        {
+        case -1:
+        {
+            return "";
+            break;
+        }
+        case 0:
+        {
+            int fd;
+            std::vector<std::string> args;
+            char * argv[50] = { 0 };
+            int i = 0;
+
+            fd = open(file_name.c_str(), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+            if (fd < 0) exit(0);
+            if (dup2(fd, 1) < 0) exit(0);
+            if (dup2(fd, 2) < 0) exit(0);
+            args = StringHelper::split(cmd, " ");
+            for (auto arg : args)
+            {
+                if (arg.empty()) continue;
+                argv[i++] = (char *)arg.c_str();
+            }
+            execvp(argv[0], &argv[1]);
+            exit(0);
+            break;
+        }
+        default:
+        {
+            auto f = std::async(std::launch::async, [pid]
+            {
+                int status = 0;
+                waitpid(pid, &status, 0);
+                return status;
+            });
+            auto stat = f.wait_for(std::chrono::milliseconds(timeout));
+            if (stat != std::future_status::ready)
+            {
+                kill(pid, SIGABRT);
+            }
+            std::string result = FileHelper::GetFileContent(file_name);
+            FileHelper::Rm(file_name);
+            return result;
+            break;
+        }
+        }
+#else
+#error unsupported compiler
+#endif
     }
 };
 

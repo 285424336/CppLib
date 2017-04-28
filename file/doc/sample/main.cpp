@@ -1,15 +1,17 @@
 // FileHelper.cpp : Defines the entry point for the console application.
 //
 
-#include "FileHelper.h"
+#include <file\FileHelper.h>
 #include <iostream>
 #include <fstream>
 #include <string\StringHelper.h>
 
-#ifdef WIN32
+#if defined(_MSC_VER)
 #define FILE_PATH_ROOT_TEST "C:\\"
-#else
+#elif defined(__GNUC__)
 #define FILE_PATH_ROOT_TEST "/"
+#else
+#error unsupported compiler
 #endif
 
 void GetExecutablePathTest()
@@ -1217,17 +1219,34 @@ void SetFileContentTest()
 
 void GetWinTempPathTest()
 {
-#ifdef WIN32
+#if defined(_MSC_VER)
     std::cout << "windows temp path: " << FileHelper::GetWinTempPath() << std::endl;
-#endif // WIN32
+#elif defined(__GNUC__)
+#else
+#error unsupported compiler
+#endif
     return;
 }
 
-void GetWinLocalAppDataPathTest()
+void GetWinTempFileTest()
 {
-#ifdef WIN32
-    std::cout << "windows local app data path: " << FileHelper::GetWinLocalAppDataPath() << std::endl;
-#endif // WIN32
+#if defined(_MSC_VER)
+    std::cout << "temp file: " << FileHelper::GetWinTempFile() << std::endl;
+#elif defined(__GNUC__)
+#else
+#error unsupported compiler
+#endif
+    return;
+}
+
+void GetWinTypePathTest()
+{
+#if defined(_MSC_VER)
+    std::cout << "windows local app data path: " << FileHelper::GetWinTypePath(CSIDL_LOCAL_APPDATA) << std::endl;
+#elif defined(__GNUC__)
+#else
+#error unsupported compiler
+#endif
     return;
 }
 
@@ -1252,7 +1271,8 @@ int main()
     GetFileContentTest();
     SetFileContentTest();
     GetWinTempPathTest();
-    GetWinLocalAppDataPathTest();
+    GetWinTempFileTest();
+    GetWinTypePathTest();
     return 0;
 }
 

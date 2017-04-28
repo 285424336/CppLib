@@ -1,19 +1,20 @@
 #include "FileHelper.h"
 #include "whereami.h"
 #include <fstream>
-#include <string\StringHelper.h>
 #if defined(_MSC_VER)
 #include "dirent.h"
 #include <Dbghelp.h>
 #include <io.h> 
 #include <direct.h>
 #include <Shellapi.h>
+#include <string\StringHelper.h>
 #pragma comment(lib, "Shell32.lib")
 #pragma comment(lib, "Dbghelp.lib")
 #elif defined(__GNUC__)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <string/StringHelper.h>
 #else
 #error unsupported compiler
 #endif
@@ -571,6 +572,15 @@ std::string FileHelper::GetWinTempPath()
     char path[PATH_MAX + 1] = { 0 };
     if (!GetTempPathA(PATH_MAX, path)) return "";
     return path;
+}
+
+std::string FileHelper::GetWinTempFile()
+{
+    std::string tmp_path = GetWinTempPath();
+    if (tmp_path.empty()) return "";
+    char szTempFileName[MAX_PATH + 1];
+    if (!GetTempFileNameA(tmp_path.c_str(), "tmp", 0, szTempFileName)) return "";
+    return szTempFileName;
 }
 
 /**

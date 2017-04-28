@@ -234,7 +234,7 @@ private:
 // See MSDN doc for ::RegOpenKeyEx().
 // Note that the returned key is RAII-wrapped, so *don't* call ::RegCloseKey() on it!
 // Let just RegKey's destructor close the key.
-RegKey OpenKey(HKEY hKey, const std::wstring& subKeyName, REGSAM accessRights = KEY_READ | (Kernel32Helper::Is64System() ? KEY_WOW64_64KEY : 0));
+RegKey OpenKey(HKEY hKey, const std::wstring& subKeyName, REGSAM accessRights = KEY_WRITE | KEY_READ | (Kernel32Helper::Is64System() ? KEY_WOW64_64KEY : 0));
 
 // Wrapper on RegCreateKeyEx().
 // See MSDN doc for ::RegCreateKeyEx().
