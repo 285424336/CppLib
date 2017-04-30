@@ -20,8 +20,8 @@ public:
     class ID
     {
     public:
-        size_t type_hash;
-        std::shared_ptr<std::function<void(u_int, void *)>> id;
+        size_t type_hash; //Subscribe Event type hash
+        std::shared_ptr<std::function<void(u_int, void *)>> id; //a wrapper function ptr of Subscribe Event function
     };
 public:
     EventHub(u_int pool_size = 0) : pool(std::make_shared<ThreadPool>(pool_size)), map_mutex(), listeners()
@@ -91,7 +91,7 @@ public:
         auto ptr = std::make_shared<type>(std::forward<T>(s));
         std::unique_lock<std::mutex> lock(map_mutex);
         for (auto f : listeners[event][type_hash])
-        {
+        {//listener who has the same type of the event will recv the event
             try
             {
                 pool->enqueue([event, f, ptr]
@@ -106,7 +106,7 @@ public:
         }
 
         for (auto f : listeners[event][typeid(void).hash_code()])
-        {
+        {//listener who has void type of the event will recv the event
             try
             {
                 pool->enqueue([event, f, ptr]
@@ -132,8 +132,9 @@ public:
     }
 
 private:
-    std::shared_ptr<ThreadPool> pool;
-    std::mutex map_mutex;
+    std::shared_ptr<ThreadPool> pool;//used to deal the event callback
+    std::mutex map_mutex;//listeners lock
+    //the first map key is event, the second map key is type of SubscribeEvent, the second value is a list of function, which is a wrapper of SubscribeEvent funtion
     std::map<u_int, std::map<size_t, std::vector<std::shared_ptr<std::function<void(u_int, void *)>>>>> listeners;
 };
 
