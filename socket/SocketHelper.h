@@ -3,12 +3,19 @@
 
 #if defined(_MSC_VER)
 #include <WS2tcpip.h>
+#include <Mstcpip.h>
 #pragma comment(lib,"ws2_32.lib")
 #elif defined(__GNUC__)
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <net/if.h> 
+#include <linux/sockios.h> 
+#include <netinet/in.h>
+#include <sys/types.h>  
+#include <sys/ioctl.h>
 #include <unistd.h>
+#include <string.h>
 #else
 #error unsupported compiler
 #endif
@@ -144,7 +151,7 @@ public:
         right = std::move(tmp);
     }
 
-private:
+protected:
     virtual bool InitSock()
     {
         m_sock = CreateSocket(AF_INET, m_type, m_protocal);
@@ -170,6 +177,7 @@ private:
             CloseSocket(m_sock);
             return false;
         }
+
         return true;
     }
 
@@ -253,7 +261,6 @@ private:
         return true;
     }
 
-protected:
     /**
     *ready for socket environment 
     */
@@ -323,7 +330,7 @@ protected:
 #endif
     }
 
-private:
+protected:
     u_int   m_src_ip;
     u_short m_src_port;
     int     m_type;
@@ -334,9 +341,8 @@ private:
     u_int   m_ttl;
     u_int   m_send_tm_out;
     u_int   m_recv_tm_out;
-    SOCKET  m_sock;
     bool    m_is_init;
-protected:
+    SOCKET  m_sock;
     int     m_fail_result;
 };
 
@@ -346,6 +352,92 @@ public:
     RawSocket(u_int src_ip, int protocal = 0, u_int ttl = SOCKET_DEFALUT_TLL
         , u_int send_tm_out = SOCKET_DEFALUT_SEND_TIMEOUT, u_int recv_tm_out = SOCKET_DEFALUT_RECV_TIMEOUT)
         : SocketHelper(src_ip, 0, SOCK_RAW, protocal, false, false, 0, ttl, send_tm_out, recv_tm_out){}
+
+protected:
+    virtual bool InitSock()
+    {
+        m_sock = CreateSocket(AF_INET, m_type, m_protocal);
+        if (m_sock == INVALID_SOCKET)
+        {
+            m_fail_result = GetLastSocketError();
+            return false;
+        }
+
+        if (!SetSockOptions())
+        {
+            CloseSocket(m_sock);
+            return false;
+        }
+
+#if defined(_MSC_VER)
+        sockaddr_in bind_sock = { 0 };
+        bind_sock.sin_family = AF_INET;
+        bind_sock.sin_port = m_src_port;
+        bind_sock.sin_addr.s_addr = m_src_ip;
+        if (bind(m_sock, (struct sockaddr*)&bind_sock, sizeof(bind_sock)) == SOCKET_ERROR)
+        {
+            m_fail_result = GetLastSocketError();
+            CloseSocket(m_sock);
+            return false;
+        }
+
+        DWORD dwValue = 1;
+        if (ioctlsocket(m_sock, SIO_RCVALL, &dwValue) != 0)
+        {
+            m_fail_result = GetLastSocketError();
+            CloseSocket(m_sock);
+            return false;
+        }
+
+#elif defined(__GNUC__)
+        int fd = m_sock, intrface;
+        struct ifreq buf[40] = { { 0 } };
+        struct ifconf ifc;
+
+        ifc.ifc_len = sizeof buf;
+        ifc.ifc_buf = (caddr_t)buf;
+        if (ioctl(fd, SIOCGIFCONF, (char *)&ifc))
+        {
+            m_fail_result = GetLastSocketError();
+            CloseSocket(m_sock);
+            return false;
+        }
+
+        intrface = ifc.ifc_len / sizeof(struct ifreq);
+        while (intrface-- > 0)
+        {
+            if (ioctl(fd, SIOCGIFADDR, (char *)&buf[intrface]))
+            {
+                continue;
+            }
+            
+            if (((struct sockaddr_in*)(&buf[intrface].ifr_addr))->sin_addr.s_addr != m_src_ip)
+            {
+                continue;
+            }
+
+            struct ifreq ifr;
+            strncpy(ifr.ifr_name, buf[intrface].ifr_name, strlen(buf[intrface].ifr_name) + 1);
+            if (ioctl(fd, SIOCGIFFLAGS, &ifr))
+            {
+                m_fail_result = GetLastSocketError();
+                CloseSocket(m_sock);
+                return false;
+            }
+            ifr.ifr_flags |= IFF_PROMISC;
+            if (ioctl(fd, SIOCSIFFLAGS, &ifr))
+            {
+                m_fail_result = GetLastSocketError();
+                CloseSocket(m_sock);
+                return false;
+            }
+            break;
+        }
+#else
+#error unsupported compiler
+#endif
+        return true;
+    }
 };
 
 class BroadcastSocket : public SocketHelper

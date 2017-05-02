@@ -556,6 +556,11 @@ bool FileHelper::SetFileContent(const std::string& file_path, const char *buf, s
 {
     if (buf == NULL) return false;
     if (!buf_size) return true;
+    std::string dir = GetDirInPath(file_path);
+    if (!dir.empty())
+    {
+        MkDir(dir);
+    }
     std::ofstream file(file_path, std::ios::binary | (append ? std::ios::app : (decltype(std::ios::binary))0));
     if (!file) return false;
     file.write(buf, buf_size);

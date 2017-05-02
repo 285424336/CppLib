@@ -2,7 +2,9 @@
 #define EVENT_ENGINE_H
 
 #if defined(_MSC_VER)
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <WinSock2.h>
 #include <threadpool\ThreadPool.h>
 #elif defined(__GNUC__)
 #include <threadpool/ThreadPool.h>
