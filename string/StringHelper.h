@@ -3,9 +3,6 @@
 
 #include <string>
 #include <vector>
-#ifdef min
-#undef min
-#endif // min
 #include <algorithm>
 #include <stdlib.h>
 #include <iomanip>
@@ -171,6 +168,15 @@ public:
     *locale(in): the language of the string£¬use it to encode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C"
     */
     static std::string tochar(const std::wstring &wstr, const char *locale = NULL);
+    /**
+    *convert the utf8 string to wchar
+    */
+    static std::wstring utf8towchar(const std::string &str_utf8);
+    /**
+    *convert the wchar string to utf8
+    */
+    static std::string wchartoutf8(const std::wstring &wstr);
+
     /**
     *convert string to other type
     *Target: the type you want to convert to

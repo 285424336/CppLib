@@ -96,6 +96,14 @@ public:
     }
     //destructor
     virtual ~SocketHelper() { UnInit(); }
+
+    /**
+    *reset the src ip, you should do this before init
+    */
+    virtual void ResetSrcIp(u_int src_ip)
+    {
+        m_src_ip = src_ip;
+    }
     /**
     *init the sock, after init, you can use GetSock to listen|connect|send|recv
     */

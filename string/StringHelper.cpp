@@ -1,5 +1,19 @@
 #include "StringHelper.h"
 #include <cctype>
+#if defined(_MSC_VER)
+#include <windows.h>
+#elif defined(__GNUC__)
+#include <iconv.h> 
+#else
+#error unsupported compiler
+#endif
+
+#ifdef min
+#undef min
+#endif // min
+#ifdef max
+#undef max
+#endif // min
 
 std::string& StringHelper::trim(std::string &s)
 {
@@ -46,7 +60,7 @@ std::vector<std::string> StringHelper::split(const std::string& s, const std::st
         elems.push_back(s.substr(pos, find_pos - pos));
         pos = find_pos + delim_len;
     }
-    return std::move(elems);
+    return elems;
 }
 
 std::string StringHelper::replace(const std::string& str, const std::string& src, const std::string& dest)
@@ -68,7 +82,7 @@ std::string StringHelper::replace(const std::string& str, const std::string& src
     {
         result.append(str.begin() + pos_begin, str.end());
     }
-    return std::move(result);
+    return result;
 }
 
 std::wstring StringHelper::towchar(const std::string &str, const char *locale)
@@ -77,8 +91,12 @@ std::wstring StringHelper::towchar(const std::string &str, const char *locale)
     if (str.empty()) return result;
     size_t str_len = str.length();
     wchar_t *buf = NULL;
-    std::string cur_locale = setlocale(LC_CTYPE, NULL);
-    setlocale(LC_CTYPE, locale);
+    std::string cur_locale;
+    if (locale)
+    {
+        cur_locale = setlocale(LC_CTYPE, NULL);
+        setlocale(LC_CTYPE, locale);
+    }
     do
     {
 #if defined(_MSC_VER)
@@ -99,9 +117,15 @@ std::wstring StringHelper::towchar(const std::string &str, const char *locale)
 #endif
         result = buf;
     } while (0);
-    setlocale(LC_CTYPE, cur_locale.c_str());
-    if (buf) delete[] buf;
-    return std::move(result);
+    if (!cur_locale.empty())
+    {
+        setlocale(LC_CTYPE, cur_locale.c_str());
+    }
+    if (buf)
+    {
+        delete[] buf;
+    }
+    return result;
 }
 
 std::string StringHelper::tochar(const std::wstring &wstr, const char *locale)
@@ -110,15 +134,19 @@ std::string StringHelper::tochar(const std::wstring &wstr, const char *locale)
     if (wstr.empty()) return result;
     size_t wstr_len = wstr.length();
     char *buf = NULL;
-    std::string cur_locale = setlocale(LC_CTYPE, NULL);
-    setlocale(LC_CTYPE, locale);
+    std::string cur_locale;
+    if (locale)
+    {
+        cur_locale = setlocale(LC_CTYPE, NULL);
+        setlocale(LC_CTYPE, locale);
+    }
     do
     {
 #if defined(_MSC_VER)
-        buf = new (std::nothrow) char[wstr_len * 2 + 1];
+        buf = new (std::nothrow) char[wstr_len * sizeof(wchar_t) + 1];
         if (buf == NULL) break;
         size_t converted = 0;
-        auto error = wcstombs_s(&converted, buf, wstr_len * 2 + 1, wstr.c_str(), (size_t)-1);
+        auto error = wcstombs_s(&converted, buf, wstr_len * sizeof(wchar_t) + 1, wstr.c_str(), (size_t)-1);
         if (error) break;
 #elif defined(__GNUC__)
         auto need_len = wcstombs(NULL, wstr.c_str(), 0);
@@ -132,9 +160,127 @@ std::string StringHelper::tochar(const std::wstring &wstr, const char *locale)
 #endif
         result = buf;
     } while (0);
-    setlocale(LC_CTYPE, cur_locale.c_str());
-    if (buf) delete[] buf;
-    return std::move(result);
+    if (!cur_locale.empty())
+    {
+        setlocale(LC_CTYPE, cur_locale.c_str());
+    }
+    if (buf)
+    {
+        delete[] buf;
+    }
+    return result;
+}
+
+std::wstring StringHelper::utf8towchar(const std::string &str_utf8)
+{
+    if (str_utf8.empty()) return L"";
+#if defined(_MSC_VER)
+    wchar_t *buf = NULL;
+    u_int nLen = MultiByteToWideChar(CP_UTF8, 0, str_utf8.c_str(), str_utf8.size(), NULL, 0);
+    if (nLen <= 0)
+    {
+        return L"";
+    }
+    buf = new (std::nothrow) wchar_t[nLen];
+    if (buf == NULL)
+    {
+        return L"";
+    }
+    u_int nRtn = MultiByteToWideChar(CP_UTF8, 0, str_utf8.c_str(), str_utf8.size(), buf, nLen);
+    if (nRtn != nLen)
+    {
+        delete[]buf;
+        return L"";
+    }
+    std::wstring result(buf, nRtn);
+    delete[]buf;
+    return result;
+#elif defined(__GNUC__)
+    iconv_t cd;
+    cd = iconv_open("WCHAR_T", "UTF-8");
+    if ((iconv_t)-1 == cd) 
+    {
+        return L"";
+    }
+    char* inbuffer = (char *)str_utf8.c_str();
+    size_t srcLen = str_utf8.size();
+    size_t outLen = str_utf8.size() * sizeof(wchar_t);
+    char* outbuff = new (std::nothrow) char[outLen];
+    if (outbuff == NULL)
+    { 
+        iconv_close(cd);
+        return L"";
+    }
+    char *begin = outbuff;
+    auto retsize = iconv(cd, (char **)&inbuffer, (size_t *)&srcLen, &outbuff, (size_t *)&outLen);
+    iconv_close(cd);
+    if ((size_t)-1 == retsize) 
+    {
+        delete[]begin;
+        return L"";
+    }
+    std::wstring result((wchar_t*)begin, (outbuff-begin)/sizeof(wchar_t));
+    delete[]begin;
+    return result;
+#else
+#error unsupported compiler
+#endif
+}
+
+std::string StringHelper::wchartoutf8(const std::wstring &wstr)
+{
+    if (wstr.empty()) return "";
+#if defined(_MSC_VER)
+    char *buf = NULL;
+    u_int nLen = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.size(), NULL, 0, NULL, NULL);
+    if (nLen <= 0)
+    {
+        return "";
+    }
+    buf = new (std::nothrow) char[nLen];
+    if (buf == NULL)
+    {
+        return "";
+    }
+    u_int nRtn = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), wstr.size(), buf, nLen, NULL, NULL);
+    if (nRtn != nLen)
+    {
+        delete[]buf;
+        return "";
+    }
+    std::string result(buf, nRtn);
+    delete[]buf;
+    return result;
+#elif defined(__GNUC__)
+    iconv_t cd;
+    cd = iconv_open("UTF-8//TRANSLIT", "WCHAR_T");
+    if ((iconv_t)-1 == cd)
+    {
+        return "";
+    }
+    char* inbuffer = (char *)wstr.c_str();
+    size_t srcLen = wstr.size() * sizeof(wchar_t);
+    size_t outLen = srcLen * 4;
+    char* outbuff = new (std::nothrow) char[outLen];
+    if (outbuff == NULL)
+    {
+        iconv_close(cd);
+        return "";
+    }
+    char *begin = outbuff;
+    auto retsize = iconv(cd, (char **)&inbuffer, (size_t *)&srcLen, &outbuff, (size_t *)&outLen);
+    iconv_close(cd);
+    if ((size_t)-1 == retsize)
+    {
+        delete[]begin;
+        return "";
+    }
+    std::string result(begin, outbuff-begin);
+    delete[]begin;
+    return result;
+#else
+#error unsupported compiler
+#endif
 }
 
 bool StringHelper::hex2byte(const std::string& hex, char *out, const size_t &out_size)
@@ -155,7 +301,7 @@ bool StringHelper::hex2byte(const std::string& hex, char *out, const size_t &out
 
 std::string StringHelper::byte2basestr(const unsigned char* byte, const size_t &byte_size, const std::string &delim, const io_base base, const size_t width, const char fill, bool upcase)
 {
-    if (!byte) return std::string();
+    if (!byte) return "";
     std::ostringstream oss;
     changebase(oss,base);
     setfill(oss, fill);
@@ -166,5 +312,5 @@ std::string StringHelper::byte2basestr(const unsigned char* byte, const size_t &
         if (i < byte_size - 1 && !delim.empty())
             oss << delim;
     }
-    return std::move(oss.str());
+    return oss.str();
 }

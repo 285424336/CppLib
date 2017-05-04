@@ -6,7 +6,7 @@ bool CNLMHelper::RegistNetworkChangeCallback(NlMCallBack fnCb )
 
     if (m_is_co_init == false)
     {
-        ::CoInitialize(NULL);
+        ::CoInitializeEx(NULL, COINIT_MULTITHREADED);
         m_is_co_init = true;
     }
 

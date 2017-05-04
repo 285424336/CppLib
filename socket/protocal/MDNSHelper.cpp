@@ -321,5 +321,4 @@ bool MDNSHelper::ParseMdnsSrvdata(const char *data, int size, int pos, int len, 
     if (ret && !domain_name.empty())
         names.insert(std::move(domain_name));
     return true;
-
 }

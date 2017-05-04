@@ -212,7 +212,7 @@ public:
     typedef std::map<int, std::function<bool(const char *, int, int, int, std::set<std::string> &)>> TypeDataOpType;
 
 public:
-    explicit MDNSHelper(u_int src_ip = INADDR_ANY):MulticastSocket(src_ip, 0, htonl(MDNS_MCAST_ADDR_INT)){}
+    explicit MDNSHelper(u_int src_ip = INADDR_ANY, u_short src_port = 0):MulticastSocket(src_ip, src_port, htonl(MDNS_MCAST_ADDR_INT)){}
     ~MDNSHelper(){}
     bool SendMDNSRequest(const std::string &server);
     bool RecvNextMDNSResponce(std::string &from_ip, std::map<int, std::set<std::string>> &info);
@@ -221,11 +221,11 @@ public:
     static DNSHeader GetMDNSQueryHeader();
     static sockaddr_in GetMDNSSockaddr();
     static TypeDataOpType RegistTypeDataOp();
+    static bool CheckMDNSResponcevalidity(char *data, int size);
+    static bool DealMDNSResponce(std::map<int, std::set<std::string>> &info, char *data, int size);
 
 private:
     static bool GeneraterMDNSQueryPacket(const std::string &server, char *buf, size_t &size);
-    static bool CheckMDNSResponcevalidity(char *data, int size);
-    static bool DealMDNSResponce(std::map<int, std::set<std::string>> &info, char *data, int size);
     static bool EncodeDotStr(const std::string &type, char *byte, size_t &size);
     static bool DecodeDotStr(std::string &type, const char *packet, int size, int &deal_off);
     static bool ParseMdnsPtrdata(const char *data, int size, int pos, int len, std::set<std::string> &names);

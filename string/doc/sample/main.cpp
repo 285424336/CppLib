@@ -4,8 +4,10 @@
 #if defined(_MSC_VER)
 #include <windows.h>
 #include <string\StringHelper.h>
+#include <file\FileHelper.h>
 #elif defined(__GNUC__)
 #include <string/StringHelper.h>
+#include <file/FileHelper.h>
 #else
 #error unsupported compiler
 #endif
@@ -197,8 +199,40 @@ void ToWCharTest()
     }
     {
         std::string a = "leo";
+        std::wcout << StringHelper::towchar(a, NULL) << std::endl;
         std::cout << StringHelper::tochar(StringHelper::towchar(a, NULL), NULL) << std::endl;
         std::cout << StringHelper::tochar(StringHelper::towchar(a, "C"), "C") << std::endl;
+    }
+}
+
+void wchartoutf8Test()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+        std::string name = "Âí³¿½ã";
+#if defined(_MSC_VER)
+        std::string utf8 = StringHelper::wchartoutf8(StringHelper::towchar(name, "chs"));
+#elif defined(__GNUC__)
+        std::string utf8 = StringHelper::wchartoutf8(StringHelper::towchar(name, "zh_CN.UTF-8"));
+#else
+#error unsupported compiler
+#endif
+        FileHelper::SetFileContent("utf8.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-8: " << utf8 << std::endl;
+    }
+}
+
+void utf8towcharTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+#if defined(_MSC_VER)
+        std::cout << StringHelper::tochar(StringHelper::utf8towchar(FileHelper::GetFileContent("utf8.txt")), "chs") << std::endl;
+#elif defined(__GNUC__)
+        std::cout << StringHelper::tochar(StringHelper::utf8towchar(FileHelper::GetFileContent("utf8.txt")), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
     }
 }
 
@@ -233,5 +267,7 @@ int main()
     ToWCharTest();
     Hex2ByteTest();
     Byte2BaseStrTest();
+    wchartoutf8Test();
+    utf8towcharTest();
     return 0;
 }

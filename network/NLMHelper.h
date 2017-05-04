@@ -58,6 +58,7 @@ public:
     *fnCb[in] callback function
     *return true|false
     *note only the last call will be registed, even if you call this function again and again
+    *the callback will be called in private thread, so you should make sure the sync yourself
     */
 	bool RegistNetworkChangeCallback(NlMCallBack fnCb);
     /**
