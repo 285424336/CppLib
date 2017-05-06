@@ -9,6 +9,8 @@
 #include <TlHelp32.h>
 #include <string\StringHelper.h>
 #include <file\FileHelper.h>
+#include <uid\UidHelper.h>
+#include <mutex>
 #elif defined(__GNUC__)
 #include <stdio.h>
 #include <unistd.h>
@@ -238,55 +240,82 @@ public:
     static std::string ExecuteCMDAndGetResult(const std::string &cmd, u_int timeout)
     {
 #if defined(_MSC_VER)
-        //Create temp file to store child process's output
-        HANDLE hTmpFile = INVALID_HANDLE_VALUE;
-        std::string szTempFileName = FileHelper::GetWinTempFile();
-        if (szTempFileName.empty()) return "";
+        static std::string temp_dir = FileHelper::CoordinateFileSeparator(FileHelper::GetWinTempPath()) + "exectmp\\";
+        static bool mkdir = FileHelper::MkDir(temp_dir);
+        static u_int run_count = 0;
+        static std::mutex run_count_mutex;
 
-        SECURITY_ATTRIBUTES sa;
-        sa.nLength = sizeof(sa);
-        sa.lpSecurityDescriptor = NULL;
-        sa.bInheritHandle = TRUE;
-        hTmpFile = CreateFileA(szTempFileName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-        if (hTmpFile == INVALID_HANDLE_VALUE)
+        if (temp_dir.empty())
         {
             return "";
         }
 
-        PROCESS_INFORMATION pi;
-        ZeroMemory(&pi, sizeof(pi));
-
-        STARTUPINFOA si;
-        ZeroMemory(&si, sizeof(si));
-        si.cb = sizeof(si);
-        si.hStdOutput = hTmpFile;
-        si.hStdError = hTmpFile;
-        si.dwFlags |= STARTF_USESTDHANDLES;
-        si.dwFlags |= STARTF_USESHOWWINDOW;
-        si.wShowWindow = SW_HIDE;
-        if (::CreateProcessA(NULL,     // No module name (use command line)
-            (LPSTR)cmd.c_str(),     // Command line
-            NULL,                       // Process handle not inheritable
-            NULL,                       // Thread handle not inheritable
-            TRUE,                   // Set handle inheritance to TRUE
-            0,                          // No creation flags
-            NULL,                       // Use parent's environment block
-            NULL,                       // Use parent's starting directory 
-            &si,                        // Pointer to STARTUPINFO structure
-            &pi))                       // Pointer to PROCESS_INFORMATION structure
         {
-            DWORD ret = WaitForSingleObject(pi.hProcess, timeout);
-            if (ret == WAIT_TIMEOUT)
-            {
-                TerminateProcess(pi.hProcess, 0);
-            }
-            CloseHandle(pi.hProcess);
-            CloseHandle(pi.hThread);
+            std::unique_lock<std::mutex> lock(run_count_mutex);
+            run_count++;
         }
 
-        CloseHandle(hTmpFile);
-        std::string result = FileHelper::GetFileContent(szTempFileName);
-        FileHelper::Rm(szTempFileName);
+        std::string result;
+        do
+        {
+            //Create temp file to store child process's output
+            HANDLE hTmpFile = INVALID_HANDLE_VALUE;
+            std::string szTempFileName = temp_dir + UidHelper::GenerateUUID() + ".tmp";
+
+            SECURITY_ATTRIBUTES sa;
+            sa.nLength = sizeof(sa);
+            sa.lpSecurityDescriptor = NULL;
+            sa.bInheritHandle = TRUE;
+            hTmpFile = CreateFileA(szTempFileName.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+            if (hTmpFile == INVALID_HANDLE_VALUE)
+            {
+                break;
+            }
+
+            PROCESS_INFORMATION pi;
+            ZeroMemory(&pi, sizeof(pi));
+
+            STARTUPINFOA si;
+            ZeroMemory(&si, sizeof(si));
+            si.cb = sizeof(si);
+            si.hStdOutput = hTmpFile;
+            si.hStdError = hTmpFile;
+            si.dwFlags |= STARTF_USESTDHANDLES;
+            si.dwFlags |= STARTF_USESHOWWINDOW;
+            si.wShowWindow = SW_HIDE;
+            if (::CreateProcessA(NULL,     // No module name (use command line)
+                (LPSTR)cmd.c_str(),     // Command line
+                NULL,                       // Process handle not inheritable
+                NULL,                       // Thread handle not inheritable
+                TRUE,                   // Set handle inheritance to TRUE
+                0,                          // No creation flags
+                NULL,                       // Use parent's environment block
+                NULL,                       // Use parent's starting directory 
+                &si,                        // Pointer to STARTUPINFO structure
+                &pi))                       // Pointer to PROCESS_INFORMATION structure
+            {
+                DWORD ret = WaitForSingleObject(pi.hProcess, timeout);
+                if (ret == WAIT_TIMEOUT)
+                {
+                    TerminateProcess(pi.hProcess, 0);
+                }
+                CloseHandle(pi.hProcess);
+                CloseHandle(pi.hThread);
+            }
+
+            CloseHandle(hTmpFile);
+            result = FileHelper::GetFileContent(szTempFileName);
+        } while (0);
+
+        {
+            std::unique_lock<std::mutex> lock(run_count_mutex);
+            run_count--;
+            if (!run_count)
+            {
+                FileHelper::Rm(temp_dir);
+                FileHelper::MkDir(temp_dir);
+            }
+        }
         return result;
 
 #elif defined(__GNUC__)

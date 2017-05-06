@@ -157,15 +157,15 @@ public:
         return result;
     }
     /**
-    *change multi char to wchar, using specify charactor set to convert
+    *change multi char to wchar, using specify charactor set to convert, it is strict
     *str(in): the multi need to convert
-    *locale(in): the language of the string£¬use it to decode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C"
+    *locale(in): the language of the string£¬use it to decode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C", use NULL for defalut
     */
     static std::wstring towchar(const std::string &str, const char *locale = NULL);
     /**
-    *change wchar to multi char , using specify charactor set to convert
+    *change wchar to multi char , using specify charactor set to convert, it is strict
     *wstr(in): the multi need to convert
-    *locale(in): the language of the string£¬use it to encode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C"
+    *locale(in): the language of the string£¬use it to encode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C", use NULL for defalut
     */
     static std::string tochar(const std::wstring &wstr, const char *locale = NULL);
     /**
