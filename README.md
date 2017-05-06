@@ -6,7 +6,8 @@ Lib for cpp project, all the lib can be used for windows, but only some can be u
 [*dll: WIN ONLY, use for load dll from memory](https://github.com/machenjie/CppLib/tree/master/dll)<br/>
 [*event: WIN/LINUX, an simple event hub using closure](https://github.com/machenjie/CppLib/tree/master/event)<br/>
 [*file: WIN/LINUX, it is a file/directory operation lib](https://github.com/machenjie/CppLib/tree/master/file)<br/>
-[*json: WIN/LINUX, it is a json lib, open source code](https://github.com/machenjie/CppLib/tree/master/json)<br/>
+[*inject: WIN ONLY, it is a inject shell code lib](https://github.com/machenjie/CppLib/tree/master/file)<br/>
+[*json: WIN/LINUX, it is a json lib, open source code](https://github.com/machenjie/CppLib/tree/master/inject)<br/>
 [*kernel32: WIN/LINUX, it is a wrapper of system operation](https://github.com/machenjie/CppLib/tree/master/kernel32)<br/>
 [*md5: WIN/LINUX, it is a md5 lib](https://github.com/machenjie/CppLib/tree/master/md5)<br/>
 [*network: WIN/LINUX, it is a network info collect lib](https://github.com/machenjie/CppLib/tree/master/network)<br/>
@@ -17,6 +18,7 @@ Lib for cpp project, all the lib can be used for windows, but only some can be u
 [*socket: WIN/LINUX, it is a wrapper of socket](https://github.com/machenjie/CppLib/tree/master/socket)<br/>
 [*string: WIN/LINUX, it is a string operation lib](https://github.com/machenjie/CppLib/tree/master/string)<br/>
 [*threadpool: WIN/LINUX, it is a threadpool lib, based on open source code](https://github.com/machenjie/CppLib/tree/master/threadpool)<br/>
+[*template: WIN/LINUX, some useful template](https://github.com/machenjie/CppLib/tree/master/template)<br/>
 [*time: WIN/LINUX, it is a time helper lib](https://github.com/machenjie/CppLib/tree/master/time)<br/>
 [*uid: WIN/LINUX, it is a uuid/guid generate lib, if you want to use in linux, you must install uuid package](https://github.com/machenjie/CppLib/tree/master/uid)<br/>
 [*winreg: WIN ONLY, it is a windows registry operation lib, based on open source code](https://github.com/machenjie/CppLib/tree/master/winreg)<br/>
