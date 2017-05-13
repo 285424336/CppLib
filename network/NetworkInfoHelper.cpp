@@ -32,7 +32,9 @@
 #else
 #error unsupported compiler
 #endif
+#include "ArpTableHelper.h"
 #include "NetworkInfoHelper.h"
+
 
 std::mutex NetworkInfoHelper::m_netowrk_info_lock;
 
@@ -704,6 +706,7 @@ void NetworkInfoHelper::GetAdaptInfo()
 
     m_last_update_network_info.adapt_info.adapter_name = adapt_name;
     m_last_update_network_info.adapt_info.adapter_dec = adapt_dec;
+    m_last_update_network_info.adapt_info.guid = UidHelper::StringToUUID(StringHelper::towchar(adapt_name));
 
     m_last_update_network_info.adapt_info.index = index;
 #elif defined(__GNUC__)
@@ -827,6 +830,7 @@ u_int NetworkInfoHelper::GetAllAdaptInfo(AdaptInfo *infos, u_int count)
         info->dhcp_ip_address_int = in;
         info->adapter_name = StringHelper::tolower(pAdapter->AdapterName);
         info->adapter_dec = StringHelper::tolower(pAdapter->Description);
+        info->guid = UidHelper::StringToUUID(StringHelper::towchar(info->adapter_name));
         info->index = pAdapter->Index;
         pAdapter = pAdapter->Next;
     }
@@ -923,14 +927,15 @@ u_int NetworkInfoHelper::GetAllAdaptInfo(AdaptInfo *infos, u_int count)
     return valid_count;
 }
 
-void NetworkInfoHelper::GetCategoryInfo()
+NetworkInfoHelper::CategoryInfo NetworkInfoHelper::GetCategoryInfo(const GUID &guid)
 {
+    CategoryInfo result;
 #if defined(_MSC_VER)
     HRESULT hr = S_OK;
     HRESULT hrCoinit = CoInitializeEx(NULL, COINIT_MULTITHREADED);
     if (!SUCCEEDED(hrCoinit) && !(RPC_E_CHANGED_MODE == hrCoinit))
     {
-        return;
+        return result;
     }
 
     do
@@ -941,22 +946,22 @@ void NetworkInfoHelper::GetCategoryInfo()
         {
             break;
         }
-
-        CComPtr<IEnumNetworks> pEnumNetworks;
-        // Enumerate connected networks 
-        hr = pNLM->GetNetworks(NLM_ENUM_NETWORK_CONNECTED, &pEnumNetworks);
-        if (!SUCCEEDED(hr))
+        
+        CComPtr<IEnumNetworkConnections> pEnumNetworks;
+        hr = pNLM->GetNetworkConnections(&pEnumNetworks);
+        if (hr != S_OK)
         {
             break;
         }
 
+        CComPtr<INetwork> pNetwork;
         BOOL  bDone = FALSE;
         while (!bDone)
         {
-            INetwork* pNetworks[NUM_NETWORK];
+            INetworkConnection* pNetworks[NUM_NETWORK];
             ULONG cFetched = 0;
             hr = pEnumNetworks->Next(_countof(pNetworks), pNetworks, &cFetched);
-            if (!SUCCEEDED(hr) || cFetched <= 0)
+            if (hr != S_OK || cFetched == 0)
             {
                 bDone = true;
                 continue;
@@ -964,74 +969,82 @@ void NetworkInfoHelper::GetCategoryInfo()
 
             for (ULONG i = 0; i < cFetched; i++)
             {
-                VARIANT_BOOL bNetworkIsConnectedToInternet;
-                hr = pNetworks[i]->get_IsConnectedToInternet(&bNetworkIsConnectedToInternet);
-                if (hr == S_OK)
+                GUID adapt_id;
+                hr = pNetworks[i]->GetAdapterId(&adapt_id);
+                if (hr != S_OK)
                 {
-                    m_last_update_network_info.category_info.is_connect_to_internet = bNetworkIsConnectedToInternet;
-                }
-
-                VARIANT_BOOL bNetworkIsConnected;
-                hr = pNetworks[i]->get_IsConnected(&bNetworkIsConnected);
-                if (hr == S_OK)
-                {
-                    m_last_update_network_info.category_info.is_connected = bNetworkIsConnected;
-                }
-
-                if (!m_last_update_network_info.category_info.is_connected || !m_last_update_network_info.category_info.is_connect_to_internet)
-                {
-                    m_last_update_network_info.category_info.is_connected = (VARIANT_BOOL)0;
-                    m_last_update_network_info.category_info.is_connect_to_internet = (VARIANT_BOOL)0;
                     continue;
                 }
-
-                WCHAR *buf = NULL;
-                hr = pNetworks[i]->GetName(reinterpret_cast<BSTR*>(&buf));
-                if (SUCCEEDED(hr))
+                if (!memcmp(&adapt_id, &guid, sizeof(adapt_id)))
                 {
-                    m_last_update_network_info.category_info.category_name = StringHelper::tochar(buf);
-                    StringHelper::tolower(m_last_update_network_info.category_info.category_name);
-                    SysFreeString(reinterpret_cast<BSTR>(buf));
-                    buf = NULL;
+                    pNetworks[i]->GetNetwork(&pNetwork);
+                    bDone = true;
+                    break;
                 }
-
-                hr = pNetworks[i]->GetDescription(reinterpret_cast<BSTR*>(&buf));
-                if (SUCCEEDED(hr))
-                {
-                    m_last_update_network_info.category_info.category_dec = StringHelper::tochar(buf);
-                    StringHelper::tolower(m_last_update_network_info.category_info.category_dec);
-                    SysFreeString(reinterpret_cast<BSTR>(buf));
-                    buf = NULL;
-                }
-
-                NLM_NETWORK_CATEGORY category;
-                hr = pNetworks[i]->GetCategory(&category);
-                if (hr == S_OK)
-                {
-                    m_last_update_network_info.category_info.network_category = category;
-                }
-
-                NLM_DOMAIN_TYPE domain_type;
-                hr = pNetworks[i]->GetDomainType(&domain_type);
-                if (hr == S_OK)
-                {
-                    m_last_update_network_info.category_info.domain_type = domain_type;
-                }
-
-                NLM_CONNECTIVITY connective;
-                hr = pNetworks[i]->GetConnectivity(&connective);
-                if (hr == S_OK)
-                {
-                    m_last_update_network_info.category_info.connective = connective;
-                }
-
-                bDone = true;
-                break;
             }
             for (ULONG i = 0; i < cFetched; i++)
             {
                 pNetworks[i]->Release();
             }
+        }
+
+        if (pNetwork == NULL)
+        {
+            break;
+        }
+
+        VARIANT_BOOL bNetworkIsConnectedToInternet;
+        hr = pNetwork->get_IsConnectedToInternet(&bNetworkIsConnectedToInternet);
+        if (hr == S_OK)
+        {
+            result.is_connect_to_internet = bNetworkIsConnectedToInternet;
+        }
+
+        VARIANT_BOOL bNetworkIsConnected;
+        hr = pNetwork->get_IsConnected(&bNetworkIsConnected);
+        if (hr == S_OK)
+        {
+            result.is_connected = bNetworkIsConnected;
+        }
+
+        WCHAR *buf = NULL;
+        hr = pNetwork->GetName(reinterpret_cast<BSTR*>(&buf));
+        if (hr == S_OK)
+        {
+            result.category_name = StringHelper::tochar(buf);
+            StringHelper::tolower(result.category_name);
+            SysFreeString(reinterpret_cast<BSTR>(buf));
+            buf = NULL;
+        }
+
+        hr = pNetwork->GetDescription(reinterpret_cast<BSTR*>(&buf));
+        if (hr == S_OK)
+        {
+            result.category_dec = StringHelper::tochar(buf);
+            StringHelper::tolower(result.category_dec);
+            SysFreeString(reinterpret_cast<BSTR>(buf));
+            buf = NULL;
+        }
+
+        NLM_NETWORK_CATEGORY category;
+        hr = pNetwork->GetCategory(&category);
+        if (hr == S_OK)
+        {
+            result.network_category = category;
+        }
+
+        NLM_DOMAIN_TYPE domain_type;
+        hr = pNetwork->GetDomainType(&domain_type);
+        if (hr == S_OK)
+        {
+            result.domain_type = domain_type;
+        }
+
+        NLM_CONNECTIVITY connective;
+        hr = pNetwork->GetConnectivity(&connective);
+        if (hr == S_OK)
+        {
+            result.connective = connective;
         }
     } while (0);
 
@@ -1043,6 +1056,7 @@ void NetworkInfoHelper::GetCategoryInfo()
 #else
 #error unsupported compiler
 #endif
+    return result;
 }
 
 void NetworkInfoHelper::UpadteNetworkInfo(bool &is_network_change)
@@ -1052,7 +1066,7 @@ void NetworkInfoHelper::UpadteNetworkInfo(bool &is_network_change)
     m_last_update_network_info.clear();
     m_last_update_network_info.is_wifi = GetWifiInfo();
     GetAdaptInfo();
-    GetCategoryInfo();
+    m_last_update_network_info.category_info = GetCategoryInfo(m_last_update_network_info.adapt_info.guid);
     AdaptGatewayMacAddress();
     if ((m_last_update_network_info.adapt_info.gateway_ip_address_int.s_addr == 0 && m_last_update_network_info.adapt_info.local_ip_address_int.s_addr == 0)
         || (m_last_update_network_info.adapt_info.gateway_ip_address_int.s_addr != 0 && m_last_update_network_info.adapt_info.local_ip_address_int.s_addr != 0 && (u_char)(m_last_update_network_info.adapt_info.local_ip_address_int.s_addr>>24) != 169))
@@ -1124,6 +1138,7 @@ u_int NetworkInfoHelper::GetAllNetworkInfo(NetworkInfo *infos, u_int count)
                 info->is_wifi = true;
                 info->wifi_info = *wifi_info;
             }
+            info->category_info = GetCategoryInfo(info->adapt_info.guid);
         }
 
     } while (0);
@@ -1151,6 +1166,14 @@ void NetworkInfoHelper::AdaptGatewayMacAddress()
         && m_last_update_network_info.adapt_info.local_ip_address == m_cur_network_info.adapt_info.local_ip_address)
     {
         m_last_update_network_info.adapt_info.gateway_mac_address = m_cur_network_info.adapt_info.gateway_mac_address;
+    }
+    else
+    {
+        auto table = ArpTableHelper::GetArpTable(m_last_update_network_info.adapt_info.index);
+        if (table.find(m_last_update_network_info.adapt_info.gateway_ip_address) != table.end())
+        {
+            m_last_update_network_info.adapt_info.gateway_mac_address = table[m_last_update_network_info.adapt_info.gateway_ip_address];
+        }
     }
 }
 

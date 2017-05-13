@@ -34,7 +34,12 @@ void PrintNetworkInfo(const NetworkInfoHelper::NetworkInfo &network_info)
     std::cout << "  " << "gateway mac: " << network_info.adapt_info.gateway_mac_address << std::endl;
     std::cout << "  " << "dhcp server ip:" << network_info.adapt_info.dhcp_ip_address << std::endl;
     std::cout << "  " << "eth index:" << network_info.adapt_info.index << std::endl;
-    //std::cout << "  " << "network category:" << network_info.category_info.network_category << std::endl;
+#if defined(_MSC_VER)
+    std::cout << "  " << "network category:" << network_info.category_info.network_category << std::endl;
+#elif defined(__GNUC__)
+#else
+#error unsupported compiler
+#endif
     if (network_info.is_wifi)
     {
         std::cout << "  " << "wifi bssid: " << network_info.wifi_info.bssid << std::endl;
@@ -44,6 +49,19 @@ void PrintNetworkInfo(const NetworkInfoHelper::NetworkInfo &network_info)
 
 int main()
 {
+    //int ms_count = 10;
+    //while (1)
+    //{
+    //    struct timeval tmp;
+    //    gettimeofday(&tmp, NULL);
+    //    unsigned long long start = tmp.tv_sec * 1000 + tmp.tv_usec/1000;
+    //    std::string mac = NetworkInfoHelper::GetMacFromAddress("192.168.1.110", ms_count);
+    //    gettimeofday(&tmp, NULL);
+    //    unsigned long long end = tmp.tv_sec * 1000 + tmp.tv_usec/1000;
+    //    std::cout << "wait ms: " << ms_count <<" use ms: "<<end-start<< " ip: 192.168.1.110 mac: " << mac << std::endl;
+    //    ms_count += 10;
+    //}
+
     u_int count = NetworkInfoHelper::GetAllNetworkInfo(NULL, 0);
     NetworkInfoHelper::NetworkInfo *network_infos = new (std::nothrow) NetworkInfoHelper::NetworkInfo[count];
     for (u_int i = 0; i < count; i++)

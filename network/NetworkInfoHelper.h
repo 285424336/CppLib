@@ -11,6 +11,8 @@
 #include <iphlpapi.h>
 #include <oleauto.h>
 #elif defined(__GNUC__)
+#include <stdlib.h>
+#include <string.h>
 #else
 #error unsupported compiler
 #endif
@@ -53,6 +55,18 @@ public:
         struct Arpheader ah;
     };
 #pragma pack(pop)
+
+#if defined(_MSC_VER)
+#elif defined(__GNUC__)
+    typedef struct {
+        unsigned long  Data1;
+        unsigned short Data2;
+        unsigned short Data3;
+        unsigned char  Data4[8];
+    } GUID;
+#else
+#error unsupported compiler
+#endif
 
     typedef struct route_info_t
     {
@@ -156,6 +170,7 @@ public:
             this->subnet_ip_mask = info.subnet_ip_mask;
             this->subnet_ip_mask_int = info.subnet_ip_mask_int;
             this->index = info.index;
+            this->guid = info.guid;
             return *this;
         }
 
@@ -174,6 +189,7 @@ public:
             this->subnet_ip_mask = "";
             this->subnet_ip_mask_int.s_addr = 0;
             this->index = -1;
+            memset(&this->guid, 0, sizeof(this->guid));
             return *this;
         }
 
@@ -190,6 +206,7 @@ public:
         std::string dhcp_ip_address;
         in_addr dhcp_ip_address_int;
         u_int       index;
+        GUID    guid;
     };
 
     class CategoryInfo
@@ -496,11 +513,11 @@ private:
 #endif
     static u_int GetAllWifiInfo(WifiInfo *infos, u_int count);
     static u_int GetAllAdaptInfo(AdaptInfo *infos, u_int count);
+    static CategoryInfo GetCategoryInfo(const GUID &guid);
 
 private:
     void GetAdaptInfo();
     bool GetWifiInfo();
-    void GetCategoryInfo();
     void AdaptGatewayMacAddress();
     NetworkInfoHelper()
     {

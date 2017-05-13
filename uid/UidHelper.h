@@ -34,6 +34,11 @@ public:
     *uuid(in): the GUID or UUID
     */
     static std::string UUIDToString(const UUID &uuid);
+    /**
+    *convert the string to uuid
+    *uuid(in): the GUID string
+    */
+    static UUID StringToUUID(const std::wstring &uuid);
 };
 
 #endif
