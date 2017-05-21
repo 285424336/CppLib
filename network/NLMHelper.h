@@ -50,8 +50,7 @@ private:
 public:
 	static CNLMHelper& GetInstance() 
     {
-        static CNLMHelper m_self;
-        return m_self;
+        return instance;
     };
     /**
     *regiest the callback for the network changing event
@@ -63,15 +62,16 @@ public:
 	bool RegistNetworkChangeCallback(NlMCallBack fnCb);
     /**
     *unregiest the callback for the network changing event
+    *note: for some reason(your program as a dll), the com dll may unload first, so you can not visit the com interface address, then exec dump
     */
     void UnRegistNetworkChangeCallback();
 
 private:
-	CNLMHelper(void):m_pNLM(NULL), m_pUnkSink(NULL), m_dwCookie(0), m_is_co_init(false){}
-    virtual ~CNLMHelper(void)
-    {
-        UnRegistNetworkChangeCallback();
-    }
+    CNLMHelper(void);
+    virtual ~CNLMHelper(void);
+
+private:
+    static CNLMHelper instance;
 
 private:
 	CComPtr <INetworkListManager> m_pNLM;

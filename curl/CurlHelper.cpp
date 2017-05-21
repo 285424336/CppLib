@@ -1,17 +1,16 @@
 #include "CurlHelper.h"
 #include <sstream>
 
-u_int CurlHelper::CurlGetString(std::vector<std::string> &vec_headers, u_int *res_code, std::string *res_body, HttpHeader *res_header)
+u_int CurlHelper::CurlGetString(const std::vector<std::string> &vec_headers, u_int *res_code, std::string *res_body, HttpHeader *res_header)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
-    std::vector<std::string>::iterator it, end;
     u_int ret = CURLE_OK;
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
-    end = vec_headers.end();
-    for (it = vec_headers.begin(); it != end; ++it)
+    auto end = vec_headers.end();
+    for (auto it = vec_headers.begin(); it != end; ++it)
     {
         headers = curl_slist_append(headers, it->c_str());
     }
@@ -36,18 +35,17 @@ u_int CurlHelper::CurlGetString(std::vector<std::string> &vec_headers, u_int *re
     return ret;
 }
 
-u_int CurlHelper::CurlGetFile(std::vector<std::string> &vec_headers, u_int *res_code, std::string *file_name, HttpHeader *res_header)
+u_int CurlHelper::CurlGetFile(const std::vector<std::string> &vec_headers, u_int *res_code, std::string *file_name, HttpHeader *res_header)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
-    std::vector<std::string>::iterator it, end;
     u_int ret = CURLE_OK;
     FILE *file = NULL;
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
-    end = vec_headers.end();
-    for (it = vec_headers.begin(); it != end; ++it)
+    auto end = vec_headers.end();
+    for (auto it = vec_headers.begin(); it != end; ++it)
     {
         headers = curl_slist_append(headers, it->c_str());
     }
@@ -89,17 +87,16 @@ u_int CurlHelper::CurlGetFile(std::vector<std::string> &vec_headers, u_int *res_
     return ret;
 }
 
-u_int CurlHelper::CurlPostString(std::vector<std::string> &vec_headers, std::string &post_body, u_int *res_code, std::string *res_body, HttpHeader *res_header)
+u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, const std::string &post_body, u_int *res_code, std::string *res_body, HttpHeader *res_header)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
-    std::vector<std::string>::iterator it, end;
     u_int ret = CURLE_OK;
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
-    end = vec_headers.end();
-    for (it = vec_headers.begin(); it != end; ++it)
+    auto end = vec_headers.end();
+    for (auto it = vec_headers.begin(); it != end; ++it)
     {
         headers = curl_slist_append(headers, it->c_str());
     }
@@ -123,25 +120,23 @@ u_int CurlHelper::CurlPostString(std::vector<std::string> &vec_headers, std::str
     return ret;
 }
 
-u_int CurlHelper::CurlPostString(std::vector<std::string> &vec_headers, std::vector<std::pair<std::string, std::string>> &post_datas, std::set<std::string> &file_paths, u_int *res_code, std::string *res_body, HttpHeader *res_header)
+u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, const std::vector<std::pair<std::string, std::string>> &post_datas, const std::set<std::string> &file_paths, u_int *res_code, std::string *res_body, HttpHeader *res_header)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
-    std::vector<std::string>::iterator it, end;
     u_int ret = CURLE_OK;
     struct curl_httppost* post = NULL;
     struct curl_httppost* last = NULL;
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
-    end = vec_headers.end();
-    for (it = vec_headers.begin(); it != end; ++it)
+    auto end = vec_headers.end();
+    for (auto it = vec_headers.begin(); it != end; ++it)
     {
         headers = curl_slist_append(headers, it->c_str());
     }
 
-    std::vector<std::pair<std::string, std::string>>::iterator vit;
-    for (vit = post_datas.begin(); vit != post_datas.end(); vit++)
+    for (auto vit = post_datas.begin(); vit != post_datas.end(); vit++)
     {
         curl_formadd(&post, &last, CURLFORM_COPYNAME, (*vit).first.c_str(),
             CURLFORM_COPYCONTENTS, (*vit).second.c_str(), CURLFORM_END);

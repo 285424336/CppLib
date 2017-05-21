@@ -324,9 +324,10 @@ public:
     */
     std::string GetNetWorkName()
     {
+        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
+
         std::string work_name;
 #if defined(_MSC_VER)
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
         if (m_cur_network_info.is_wifi)
         {
             work_name = m_cur_network_info.wifi_info.ssid;
@@ -348,7 +349,8 @@ public:
     */
     std::string GetGatewayMac()
     {
-#if defined(_MSC_VER)
+        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
+
         if (!m_cur_network_info.adapt_info.gateway_mac_address.empty())
         {
             return m_cur_network_info.adapt_info.gateway_mac_address;
@@ -359,12 +361,8 @@ public:
             return "";
         }
 
-        return GetMacFromAddress(m_cur_network_info.adapt_info.gateway_ip_address);
-#elif defined(__GNUC__)
-#else
-#error unsupported compiler
-#endif
-        return "";
+        m_cur_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_cur_network_info.adapt_info.gateway_ip_address, 3000, m_cur_network_info.adapt_info.index);
+        return m_cur_network_info.adapt_info.gateway_mac_address;
     }
 
     /**
@@ -372,13 +370,8 @@ public:
     */
     std::string GetPreNetworkGatewayMac()
     {
-#if defined(_MSC_VER)
+        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
         return m_pre_network_info.adapt_info.gateway_mac_address;
-#elif defined(__GNUC__)
-#else
-#error unsupported compiler
-#endif
-        return "";
     }
 
     /**
@@ -386,6 +379,7 @@ public:
     */
     bool IsConnectToInternet()
     {
+        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
 #if defined(_MSC_VER)
         return m_cur_network_info.category_info.is_connect_to_internet == -1 ? true : false;
 #elif defined(__GNUC__)
@@ -407,6 +401,7 @@ public:
     */
     bool IsWifi()
     {
+        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
         return m_cur_network_info.is_wifi;
     }
 
@@ -437,16 +432,31 @@ public:
     *use arp protocol to fine the mac of ip
     *ip[in] the ip that you want to find the mac
     *timeout[in] the timeout, windows not support this para
+    *eth_index[in] the eth that used to get eht mac
     *return the mac of the ip
     */
-    static std::string GetMacFromAddress(const std::string& ip, u_int timeout = 3000);
+    static std::string GetMacFromAddress(const std::string& ip, u_int timeout = 3000, int eth_index = -1);
     /**
     *use arp protocol to fine the mac of ip
     *ip[in] the ip that you want to find the mac
     *timeout[in] the timeout, windows not support this para
+    *eth_index[in] the eth that used to get eht mac
     *return the mac of the ip
     */
-    static std::string GetMacFromAddress(const in_addr& _ip, u_int timeout = 3000);
+    static std::string GetMacFromAddress(const in_addr& _ip, u_int timeout = 3000, int eth_index = -1);
+    /**
+    *get the eth index of the ip 
+    *ip[in] the ip that you want to find the eth index 
+    *return -1 for error
+    */
+    static int GetEthIndexFromAddress(const std::string& ip);
+    /**
+    *get the eth index of the ip
+    *ip[in] the ip that you want to find the eth index
+    *return -1 for error
+    */
+    static int GetEthIndexFromAddress(const in_addr& _ip);
+
 
 #if defined(_MSC_VER)
     /**

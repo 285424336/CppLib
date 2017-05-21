@@ -66,7 +66,7 @@ public:
     *res_header[out] the responce headers from the server
     *return zero for success, otherwise failed
     */
-    virtual u_int CurlGetString(std::vector<std::string> &vec_headers, u_int *res_code = NULL, std::string *res_body = NULL, HttpHeader *res_header = NULL);
+    virtual u_int CurlGetString(const std::vector<std::string> &vec_headers, u_int *res_code = NULL, std::string *res_body = NULL, HttpHeader *res_header = NULL);
     /**
     *use get method to get file from server
     *vec_headers[in] the headers that you want to add
@@ -75,7 +75,7 @@ public:
     *res_header[out] the responce headers from the server
     *return zero for success, otherwise failed
     */
-    virtual u_int CurlGetFile(std::vector<std::string> &vec_headers, u_int *res_code = NULL, std::string *file_name = NULL, HttpHeader *res_header = NULL);
+    virtual u_int CurlGetFile(const std::vector<std::string> &vec_headers, u_int *res_code = NULL, std::string *file_name = NULL, HttpHeader *res_header = NULL);
     /**
     *use post method to post string to server
     *vec_headers[in] the headers that you want to add
@@ -85,7 +85,7 @@ public:
     *res_header[out] the responce headers from the server
     *return zero for success, otherwise failed
     */
-    virtual u_int CurlPostString(std::vector<std::string> &vec_headers, std::string &post_body, u_int *res_code = NULL, std::string *res_body = NULL, HttpHeader *res_header = NULL);
+    virtual u_int CurlPostString(const std::vector<std::string> &vec_headers, const std::string &post_body, u_int *res_code = NULL, std::string *res_body = NULL, HttpHeader *res_header = NULL);
     /**
     *use post method to post multi sections to server
     *vec_headers[in] the headers that you want to add
@@ -96,7 +96,7 @@ public:
     *res_header[out] the responce headers from the server
     *return zero for success, otherwise failed
     */
-    virtual u_int CurlPostString(std::vector<std::string> &vec_headers, std::vector<std::pair<std::string,std::string>> &post_datas, std::set<std::string> &file_paths, u_int *res_code = NULL, std::string *res_body = NULL, HttpHeader *res_header = NULL);
+    virtual u_int CurlPostString(const std::vector<std::string> &vec_headers, const std::vector<std::pair<std::string,std::string>> &post_datas, const std::set<std::string> &file_paths, u_int *res_code = NULL, std::string *res_body = NULL, HttpHeader *res_header = NULL);
     virtual char *GetLastCurlErrorInfo()
     {
         return m_err_info;

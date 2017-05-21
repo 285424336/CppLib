@@ -35,7 +35,6 @@
 #include "ArpTableHelper.h"
 #include "NetworkInfoHelper.h"
 
-
 std::mutex NetworkInfoHelper::m_netowrk_info_lock;
 
 #if defined(_MSC_VER)
@@ -693,7 +692,7 @@ void NetworkInfoHelper::GetAdaptInfo()
 
     in.s_addr = dwGatewayIP;
     m_last_update_network_info.adapt_info.gateway_ip_address = NetworkHelper::IPAddr2Str(in);
-    m_last_update_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_last_update_network_info.adapt_info.gateway_ip_address);
+    m_last_update_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_last_update_network_info.adapt_info.gateway_ip_address, 3000, index);
     m_last_update_network_info.adapt_info.gateway_ip_address_int = in;
 
     in.s_addr = dwIPMask;
@@ -821,7 +820,7 @@ u_int NetworkInfoHelper::GetAllAdaptInfo(AdaptInfo *infos, u_int count)
         in.s_addr = dwGatewayIP;
         info->gateway_ip_address = pAdapter->GatewayList.IpAddress.String;
         info->gateway_ip_address_int = in;
-        info->gateway_mac_address = GetMacFromAddress(in);
+        info->gateway_mac_address = GetMacFromAddress(in, 3000, pAdapter->Index);
         in.s_addr = dwIPMask;
         info->subnet_ip_mask = pAdapter->IpAddressList.IpMask.String;
         info->subnet_ip_mask_int = in;
@@ -1071,7 +1070,8 @@ void NetworkInfoHelper::UpadteNetworkInfo(bool &is_network_change)
     if ((m_last_update_network_info.adapt_info.gateway_ip_address_int.s_addr == 0 && m_last_update_network_info.adapt_info.local_ip_address_int.s_addr == 0)
         || (m_last_update_network_info.adapt_info.gateway_ip_address_int.s_addr != 0 && m_last_update_network_info.adapt_info.local_ip_address_int.s_addr != 0 && (u_char)(m_last_update_network_info.adapt_info.local_ip_address_int.s_addr>>24) != 169))
     {//the condition present valid network info
-        if (m_last_update_network_info.adapt_info.gateway_mac_address != m_cur_network_info.adapt_info.gateway_mac_address)
+        if ((m_last_update_network_info.adapt_info.gateway_mac_address != m_cur_network_info.adapt_info.gateway_mac_address)
+            || (m_last_update_network_info.adapt_info.gateway_mac_address.empty() && m_last_update_network_info.adapt_info.gateway_ip_address_int.s_addr != m_cur_network_info.adapt_info.gateway_ip_address_int.s_addr))
         {
             m_pre_network_info = m_cur_network_info;
             m_cur_network_info = m_last_update_network_info;
@@ -1167,17 +1167,9 @@ void NetworkInfoHelper::AdaptGatewayMacAddress()
     {
         m_last_update_network_info.adapt_info.gateway_mac_address = m_cur_network_info.adapt_info.gateway_mac_address;
     }
-    else
-    {
-        auto table = ArpTableHelper::GetArpTable(m_last_update_network_info.adapt_info.index);
-        if (table.find(m_last_update_network_info.adapt_info.gateway_ip_address) != table.end())
-        {
-            m_last_update_network_info.adapt_info.gateway_mac_address = table[m_last_update_network_info.adapt_info.gateway_ip_address];
-        }
-    }
 }
 
-std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int timeout)
+std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int timeout, int eth_index)
 {
     std::string ret = "";
 
@@ -1200,10 +1192,33 @@ std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int t
         snprintf(buff, sizeof(buff), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         ret.assign(buff);
     }
+
+    do
+    {
+        if (!ret.empty())
+        {
+            break;
+        }
+
+        if (eth_index == -1)
+        {
+            eth_index = GetEthIndexFromAddress(addr);
+        }
+        if (eth_index == -1)
+        {
+            break;
+        }
+        auto table = ArpTableHelper::GetArpTable(eth_index);
+        if (table.find(_ip) != table.end())
+        {
+            ret = table[_ip];
+        }
+    } while (0);
+
     return ret;
 }
 
-std::string NetworkInfoHelper::GetMacFromAddress(const in_addr & _ip, u_int timeout)
+std::string NetworkInfoHelper::GetMacFromAddress(const in_addr & _ip, u_int timeout, int eth_index)
 {
     std::string ret = "";
 
@@ -1224,8 +1239,85 @@ std::string NetworkInfoHelper::GetMacFromAddress(const in_addr & _ip, u_int time
         snprintf(buff, sizeof(buff), "%02X:%02X:%02X:%02X:%02X:%02X", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
         ret.assign(buff);
     }
+
+    do
+    {
+        if (!ret.empty())
+        {
+            break;
+        }
+        if (eth_index == -1)
+        {
+            eth_index = GetEthIndexFromAddress(_ip);
+        }
+        if (eth_index == -1)
+        {
+            break;
+        }
+        auto table = ArpTableHelper::GetArpTable(eth_index);
+        std::string ip_str = NetworkHelper::IPAddr2Str(_ip);
+        if (ip_str.empty())
+        {
+            break;
+        }
+        if (table.find(ip_str) != table.end())
+        {
+            ret = table[ip_str];
+        }
+    } while (0);
     return ret;
 }
+
+int NetworkInfoHelper::GetEthIndexFromAddress(const std::string& ip)
+{
+
+    if (ip.empty())
+    {
+        return -1;
+    }
+
+    return GetEthIndexFromAddress(NetworkHelper::IPStr2Addr(ip));
+}
+
+int NetworkInfoHelper::GetEthIndexFromAddress(const in_addr& _ip)
+{
+    if (!_ip.s_addr)
+    {
+        return -1;
+    }
+
+    AdaptInfo *adapt_infos = NULL;
+    u_int adapt_count = GetAllAdaptInfo(adapt_infos, 0);
+    if (adapt_count == 0)
+    {
+        return -1;
+    }
+
+    adapt_infos = new (std::nothrow) AdaptInfo[adapt_count];
+    if (adapt_infos == NULL)
+    {
+        return -1;
+    }
+
+    adapt_count = GetAllAdaptInfo(adapt_infos, adapt_count);
+    int eth_index = -1;
+    for (unsigned int i = 0; i < adapt_count; i++)
+    {
+        if ((adapt_infos[i].local_ip_address_int.s_addr & adapt_infos[i].subnet_ip_mask_int.s_addr)
+            == (_ip.s_addr & adapt_infos[i].subnet_ip_mask_int.s_addr))
+        {
+            eth_index = adapt_infos[i].index;
+        }
+    }
+
+    if (adapt_infos)
+    {
+        delete[]adapt_infos;
+        adapt_infos = NULL;
+    }
+    return eth_index;
+}
+
 
 #if defined(_MSC_VER)
 #elif defined(__GNUC__)

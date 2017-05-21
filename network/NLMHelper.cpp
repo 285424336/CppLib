@@ -1,14 +1,29 @@
 #include "NLMHelper.h"
 
-bool CNLMHelper::RegistNetworkChangeCallback(NlMCallBack fnCb )
-{
-    HRESULT hr;
+CNLMHelper CNLMHelper::instance;
 
+CNLMHelper::CNLMHelper(void) :m_pNLM(NULL), m_pUnkSink(NULL), m_dwCookie(0), m_is_co_init(false)
+{
     if (m_is_co_init == false)
     {
         ::CoInitializeEx(NULL, COINIT_MULTITHREADED);
         m_is_co_init = true;
     }
+}
+
+CNLMHelper::~CNLMHelper(void)
+{
+    UnRegistNetworkChangeCallback();
+    if (m_is_co_init)
+    {
+        ::CoUninitialize();
+        m_is_co_init = false;
+    }
+}
+
+bool CNLMHelper::RegistNetworkChangeCallback(NlMCallBack fnCb )
+{
+    HRESULT hr;
 
     if (m_pNLM)
     {
@@ -75,12 +90,6 @@ void CNLMHelper::UnRegistNetworkChangeCallback()
     }
 
     m_pNLM = NULL;
-
-    if (m_is_co_init)
-    {
-        ::CoUninitialize();
-        m_is_co_init = false;
-    }
 }
 
 

@@ -5,7 +5,9 @@
 #include <socket\SocketHelper.h>
 #include <string\StringHelper.h>
 #include <network\NetworkHelper.h>
+#include <json\json.h>
 #elif defined(__GNUC__)
+#include <json/json.h>
 #include <socket/SocketHelper.h>
 #include <string/StringHelper.h>
 #include <network/NetworkHelper.h>
@@ -209,28 +211,28 @@ struct DNSResponceData_Srv
 class MDNSHelper : public MulticastSocket
 {
 public:
-    typedef std::map<int, std::function<bool(const char *, int, int, int, std::set<std::string> &)>> TypeDataOpType;
+    typedef std::map<int, std::function<bool(const char *, int, int, int, Json::Value &)>> TypeDataOpType;
 
 public:
     explicit MDNSHelper(u_int src_ip = INADDR_ANY, u_short src_port = 0):MulticastSocket(src_ip, src_port, htonl(MDNS_MCAST_ADDR_INT)){}
     ~MDNSHelper(){}
     bool SendMDNSRequest(const std::string &server);
-    bool RecvNextMDNSResponce(std::string &from_ip, std::map<int, std::set<std::string>> &info);
+    bool RecvNextMDNSResponce(std::string &from_ip, Json::Value &info);
 
 public:
     static DNSHeader GetMDNSQueryHeader();
     static sockaddr_in GetMDNSSockaddr();
     static TypeDataOpType RegistTypeDataOp();
-    static bool CheckMDNSResponcevalidity(char *data, int size);
-    static bool DealMDNSResponce(std::map<int, std::set<std::string>> &info, char *data, int size);
+    static bool CheckMDNSDataValidity(char *data, int size);
+    static bool DealMDNSData(Json::Value &info, char *data, int size);
 
 private:
     static bool GeneraterMDNSQueryPacket(const std::string &server, char *buf, size_t &size);
     static bool EncodeDotStr(const std::string &type, char *byte, size_t &size);
     static bool DecodeDotStr(std::string &type, const char *packet, int size, int &deal_off);
-    static bool ParseMdnsPtrdata(const char *data, int size, int pos, int len, std::set<std::string> &names);
-    static bool ParseMdnsTextdata(const char *data, int size, int pos, int len, std::set<std::string> &names);
-    static bool ParseMdnsSrvdata(const char *data, int size, int pos, int len, std::set<std::string> &names);
+    static bool ParseMdnsPtrdata(const char *data, int size, int pos, int len, Json::Value &names);
+    static bool ParseMdnsTextdata(const char *data, int size, int pos, int len, Json::Value &names);
+    static bool ParseMdnsSrvdata(const char *data, int size, int pos, int len, Json::Value &names);
 
 private:
     static sockaddr_in m_mdns_addr;

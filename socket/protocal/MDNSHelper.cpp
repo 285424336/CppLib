@@ -58,7 +58,7 @@ bool MDNSHelper::SendMDNSRequest(const std::string &server)
 
 bool MDNSHelper::GeneraterMDNSQueryPacket(const std::string &server, char *buf, size_t &size)
 {
-    static DNSQueryBody::tc tc = { htons(DNS_RECODE_TYPE_PTR), htons(1) };
+    static DNSQueryBody::tc tc = { htons(DNS_RECODE_TYPE_ANY), htons(1) };
     static DNSHeader req_header = MDNSHelper::GetMDNSQueryHeader();
 
     if (buf==NULL || size<MDNS_QUERY_PACK_MINI_SIZE)
@@ -169,7 +169,7 @@ bool MDNSHelper::DecodeDotStr(std::string &type, const char *packet, int size, i
     return true;
 }
 
-bool MDNSHelper::RecvNextMDNSResponce(std::string &from_ip, std::map<int,std::set<std::string>> &info)
+bool MDNSHelper::RecvNextMDNSResponce(std::string &from_ip, Json::Value &info)
 {
     static char recvbuf[MDNS_RESPONCE_BUFSIZE] = { 0 };
     SOCKET fd = GetSocket();
@@ -193,7 +193,7 @@ bool MDNSHelper::RecvNextMDNSResponce(std::string &from_ip, std::map<int,std::se
             return false;
         }
 
-        if (!CheckMDNSResponcevalidity(recvbuf, size))
+        if (!CheckMDNSDataValidity(recvbuf, size))
         {
 #ifdef DEBUG
             std::cout << __FUNCTION__ << " CheckMDNSResponcevalidity failed! " << std::endl;
@@ -203,7 +203,7 @@ bool MDNSHelper::RecvNextMDNSResponce(std::string &from_ip, std::map<int,std::se
 
         from_ip = NetworkHelper::IPAddr2Str(from.sin_addr);
 
-        if (!DealMDNSResponce(info, recvbuf, size))
+        if (!DealMDNSData(info, recvbuf, size))
         {
 #ifdef DEBUG
             std::cout << __FUNCTION__ << " DealMDNSResponce failed! " << std::endl;
@@ -214,7 +214,7 @@ bool MDNSHelper::RecvNextMDNSResponce(std::string &from_ip, std::map<int,std::se
     }
 }
 
-bool MDNSHelper::CheckMDNSResponcevalidity(char *data, int size)
+bool MDNSHelper::CheckMDNSDataValidity(char *data, int size)
 {
     if (data == NULL)
     {
@@ -235,7 +235,7 @@ bool MDNSHelper::CheckMDNSResponcevalidity(char *data, int size)
     return true;
 }
 
-bool MDNSHelper::DealMDNSResponce(std::map<int, std::set<std::string>> &info, char *data, int size)
+bool MDNSHelper::DealMDNSData(Json::Value &info, char *data, int size)
 {
     int pos = 0;
     bool ret = false;
@@ -246,19 +246,16 @@ bool MDNSHelper::DealMDNSResponce(std::map<int, std::set<std::string>> &info, ch
     for (int i = 0; i < ntohs(header->qdcount); i++)
     {
         std::string domain_name;
-        ret = DecodeDotStr(domain_name, data, size, pos);
-        if (ret && !domain_name.empty())
-            info[DNS_RECODE_TYPE_RECODE_NAME].insert(std::move(domain_name));
+        DecodeDotStr(domain_name, data, size, pos);
         pos += sizeof(DNSQueryBody::tc);
     }
 
+    Json::ArrayIndex count = 0;
     //deal others
     for (;pos < size;)
     {
         std::string domain_name;
-        ret = DecodeDotStr(domain_name, data, size, pos);
-        if (ret && !domain_name.empty())
-            info[DNS_RECODE_TYPE_RECODE_NAME].insert(std::move(domain_name));
+        DecodeDotStr(domain_name, data, size, pos);
         DNSResponceBody::tctd *ptctd = (DNSResponceBody::tctd *)&data[pos];
         ptctd->rdlen = ntohs(ptctd->rdlen);
         ptctd->rtype = ntohs(ptctd->rtype);
@@ -268,7 +265,10 @@ bool MDNSHelper::DealMDNSResponce(std::map<int, std::set<std::string>> &info, ch
             pos += ptctd->rdlen;
             continue;
         }
-        ret = m_mdns_type_data_op[ptctd->rtype](data, size, pos, ptctd->rdlen, info[ptctd->rtype]);
+        info[count]["domain"] = domain_name;
+        info[count]["ttl"] = (int)htonl(ptctd->rttl);
+        ret = m_mdns_type_data_op[ptctd->rtype](data, size, pos, ptctd->rdlen, info[count]);
+        count++;
         pos += ptctd->rdlen;
         if (!ret)
         {
@@ -278,19 +278,22 @@ bool MDNSHelper::DealMDNSResponce(std::map<int, std::set<std::string>> &info, ch
     return true;
 }
 
-bool MDNSHelper::ParseMdnsPtrdata(const char *data, int size, int pos, int len, std::set<std::string> &names)
+bool MDNSHelper::ParseMdnsPtrdata(const char *data, int size, int pos, int len, Json::Value &names)
 {
     std::string domain_name;
     bool ret = DecodeDotStr(domain_name, data, size, pos);
-    if (ret && !domain_name.empty())
-        names.insert(std::move(domain_name));
+    names["type"] = "PTR";
+    names["dataService"] = domain_name;
     return ret;
 }
 
-bool MDNSHelper::ParseMdnsTextdata(const char *data, int size, int pos, int len, std::set<std::string> &names)
+bool MDNSHelper::ParseMdnsTextdata(const char *data, int size, int pos, int len, Json::Value &names)
 {
     int off = 0;
 
+    names["type"] = "TXT";
+    names["dataTxt"] = Json::Value(Json::arrayValue);
+    Json::ArrayIndex count = 0;
     while (off < len)
     {
         const DNSResponceData_Text *srv = (const DNSResponceData_Text *)&data[pos + off];
@@ -304,21 +307,22 @@ bool MDNSHelper::ParseMdnsTextdata(const char *data, int size, int pos, int len,
 #endif // DEBUG
                 return false;
             }
-            names.insert(std::string((char *)&srv->text, srv->text_len));
+            names["dataTxt"][count++] = std::string((char *)&srv->text, srv->text_len);
             off += srv->text_len;
         }
     }
     return true;
 }
 
-bool MDNSHelper::ParseMdnsSrvdata(const char *data, int size, int pos, int len, std::set<std::string> &names)
+bool MDNSHelper::ParseMdnsSrvdata(const char *data, int size, int pos, int len, Json::Value &names)
 {
     const DNSResponceData_Srv * srv = (const DNSResponceData_Srv *)&data[pos];
 
+    names["type"] = "SRV";
     std::string domain_name;
     int off = pos + offsetof(DNSResponceData_Srv, target);
     bool ret = DecodeDotStr(domain_name, data, size, off);
-    if (ret && !domain_name.empty())
-        names.insert(std::move(domain_name));
+    names["dataSrv"] = domain_name;
+    names["port"] = htons(srv->port);
     return true;
 }
