@@ -22,6 +22,7 @@ Lib for cpp project, all the lib can be used for windows, but only some can be u
 [*time: WIN/LINUX, it is a time helper lib](https://github.com/machenjie/CppLib/tree/master/time)<br/>
 [*uid: WIN/LINUX, it is a uuid/guid generate lib, if you want to use in linux, you must install uuid package](https://github.com/machenjie/CppLib/tree/master/uid)<br/>
 [*winreg: WIN ONLY, it is a windows registry operation lib, based on open source code](https://github.com/machenjie/CppLib/tree/master/winreg)<br/>
+[*winreg: WIN ONLY, it is a wmi operation lib](https://github.com/machenjie/CppLib/tree/master/wmi)<br/>
 [*zip: WIN ONLY, it is a zip/unzip lib](https://github.com/machenjie/CppLib/tree/master/zip)<br/>
 
 For some of them is a wrap of other open source code, so if it has hurt your interests, please contact me.
