@@ -5,43 +5,42 @@
 #pragma comment(lib, "Ole32.lib")
 #pragma comment(lib, "Rpcrt4.lib")
 #elif defined(__GNUC__)
-//need use gun compile flag -luuid and install uuid-dev
+#include <file/FileHelper.h>
+#define UUID_FILE_PATH "/proc/sys/kernel/random/uuid"
 #else
 #error unsupported compiler
 #endif
 
 std::string UidHelper::GenerateGUID()
 {
-    std::string result;
-    GUID guid = { 0 };
 #if defined(_MSC_VER)
-    if (S_OK != CoCreateGuid(&guid)) return result;
+    GUID guid = { 0 };
+    if (S_OK != CoCreateGuid(&guid)) return "";
+    return UUIDToString(guid);
 #elif defined(__GNUC__)
-    uuid_generate(guid);
+    return FileHelper::GetFileContent(UUID_FILE_PATH);
 #else
 #error unsupported compiler
 #endif
-    return UUIDToString(guid);
 }
 
 std::string UidHelper::GenerateUUID()
 {
-    std::string result;
-    UUID uuid = { 0 };
 #if defined(_MSC_VER)
-    if (RPC_S_OK != UuidCreate(&uuid)) return result;
+    UUID uuid = { 0 };
+    if (RPC_S_OK != UuidCreate(&uuid)) return "";
+    return UUIDToString(uuid);
 #elif defined(__GNUC__)
-    uuid_generate(uuid);
+    return FileHelper::GetFileContent(UUID_FILE_PATH);
 #else
 #error unsupported compiler
 #endif
-    return UUIDToString(uuid);
 }
 
+#if defined(_MSC_VER)
 std::string UidHelper::UUIDToString(const UUID &uuid)
 {
     std::string result;
-#if defined(_MSC_VER)
     unsigned char *rpc_cstrUUID = NULL;
     if (RPC_S_OK != UuidToStringA(&uuid, &rpc_cstrUUID))
     {
@@ -50,28 +49,20 @@ std::string UidHelper::UUIDToString(const UUID &uuid)
     }
     result = reinterpret_cast<char*>(rpc_cstrUUID);
     RpcStringFreeA(&rpc_cstrUUID);
-#elif defined(__GNUC__)
-    char buf[64] = { 0 };
-    uuid_unparse(uuid, buf);
-    result = buf;
-#else
-#error unsupported compiler
-#endif
-    return std::move(result);
+    return result;
 }
 
 UUID UidHelper::StringToUUID(const std::wstring &uuid)
 {
     UUID result = { 0 };
-#if defined(_MSC_VER)
     HRESULT hr = CLSIDFromString(uuid.c_str(), &result);
     if (!SUCCEEDED(hr))
     {
         return UUID();
     }
+    return result;
+}
 #elif defined(__GNUC__)
 #else
 #error unsupported compiler
 #endif
-    return result;
-}

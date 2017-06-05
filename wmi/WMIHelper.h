@@ -146,6 +146,7 @@ public:
     *wszProperty(in) the specify property
     *millTimeOut(in) the max exec timeout
     *return true-success false-failed
+    *notification query wql format: SELECT * FROM [EventClass] WITHIN [interval] WHERE TargetInstance ISA [object] <AND TargetInstance.[property] > [value]>
     */
     virtual bool NotificationQueryStr(std::wstring &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty, int millTimeOut = 3000);
     /**
@@ -155,6 +156,7 @@ public:
     *wszProperty(in) the specify property
     *millTimeOut(in) the max exec timeout
     *return true-success false-failed
+    *notification query wql format: SELECT * FROM [EventClass] WITHIN [interval] WHERE TargetInstance ISA [object] <AND TargetInstance.[property] > [value]>
     */
     virtual bool NotificationQueryInt(long long &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty, int millTimeOut = 3000);
     /**
@@ -164,6 +166,7 @@ public:
     *wszProperty(in) the specify property
     *millTimeOut(in) the max exec timeout
     *return true-success false-failed
+    *notification query wql format: SELECT * FROM [EventClass] WITHIN [interval] WHERE TargetInstance ISA [object] <AND TargetInstance.[property] > [value]>
     */
     virtual bool NotificationQueryUnInt(unsigned long long &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty, int millTimeOut = 3000);
     /**
@@ -173,6 +176,7 @@ public:
     *wszProperty(in) the specify property
     *millTimeOut(in) the max exec timeout
     *return true-success false-failed
+    *notification query wql format: SELECT * FROM [EventClass] WITHIN [interval] WHERE TargetInstance ISA [object] <AND TargetInstance.[property] > [value]>
     */
     virtual bool NotificationQueryBool(bool &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty, int millTimeOut = 3000);
     /**
@@ -181,6 +185,7 @@ public:
     *wszWQLQuery(in) the query wql
     *millTimeOut(in) the max exec timeout
     *return true-success false-failed
+    *notification query wql format: SELECT * FROM [EventClass] WITHIN [interval] WHERE TargetInstance ISA [object] <AND TargetInstance.[property] > [value]>
     */
     virtual bool NotificationQueryEnum(std::vector<WMIExecValue> &result, const std::wstring &wszWQLQuery, int millTimeOut = 3000);
     /**

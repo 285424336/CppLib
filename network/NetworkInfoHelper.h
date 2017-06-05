@@ -361,7 +361,7 @@ public:
             return "";
         }
 
-        m_cur_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_cur_network_info.adapt_info.gateway_ip_address, 3000, m_cur_network_info.adapt_info.index);
+        m_cur_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_cur_network_info.adapt_info.gateway_ip_address_int, 3000, m_cur_network_info.adapt_info.index, m_cur_network_info.adapt_info.local_ip_address_int);
         return m_cur_network_info.adapt_info.gateway_mac_address;
     }
 
@@ -432,18 +432,20 @@ public:
     *use arp protocol to fine the mac of ip
     *ip[in] the ip that you want to find the mac
     *timeout[in] the timeout, windows not support this para
-    *eth_index[in] the eth that used to get eht mac
+    *eth_index[in] the eth that used to get eht mac, arptable use
+    *src_ip[in] the eth that used to get eht mac, sendarp use
     *return the mac of the ip
     */
-    static std::string GetMacFromAddress(const std::string& ip, u_int timeout = 3000, int eth_index = -1);
+    static std::string GetMacFromAddress(const std::string& ip, u_int timeout = 3000, int eth_index = -1, const std::string& src_ip = "");
     /**
     *use arp protocol to fine the mac of ip
     *ip[in] the ip that you want to find the mac
     *timeout[in] the timeout, windows not support this para
-    *eth_index[in] the eth that used to get eht mac
+    *eth_index[in] the eth that used to get eht mac, arptable use
+    *src_ip[in] the eth that used to get eht mac, sendarp use
     *return the mac of the ip
     */
-    static std::string GetMacFromAddress(const in_addr& _ip, u_int timeout = 3000, int eth_index = -1);
+    static std::string GetMacFromAddress(const in_addr& _ip, u_int timeout = 3000, int eth_index = -1, const in_addr& src_ip = { 0 });
     /**
     *get the eth index of the ip 
     *ip[in] the ip that you want to find the eth index 

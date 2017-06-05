@@ -692,7 +692,7 @@ void NetworkInfoHelper::GetAdaptInfo()
 
     in.s_addr = dwGatewayIP;
     m_last_update_network_info.adapt_info.gateway_ip_address = NetworkHelper::IPAddr2Str(in);
-    m_last_update_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_last_update_network_info.adapt_info.gateway_ip_address, 3000, index);
+    m_last_update_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(in, 3000, index, m_last_update_network_info.adapt_info.local_ip_address_int);
     m_last_update_network_info.adapt_info.gateway_ip_address_int = in;
 
     in.s_addr = dwIPMask;
@@ -820,7 +820,7 @@ u_int NetworkInfoHelper::GetAllAdaptInfo(AdaptInfo *infos, u_int count)
         in.s_addr = dwGatewayIP;
         info->gateway_ip_address = pAdapter->GatewayList.IpAddress.String;
         info->gateway_ip_address_int = in;
-        info->gateway_mac_address = GetMacFromAddress(in, 3000, pAdapter->Index);
+        info->gateway_mac_address = GetMacFromAddress(in, 3000, pAdapter->Index, info->local_ip_address_int);
         in.s_addr = dwIPMask;
         info->subnet_ip_mask = pAdapter->IpAddressList.IpMask.String;
         info->subnet_ip_mask_int = in;
@@ -1169,7 +1169,7 @@ void NetworkInfoHelper::AdaptGatewayMacAddress()
     }
 }
 
-std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int timeout, int eth_index)
+std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int timeout, int eth_index, const std::string& src_ip)
 {
     std::string ret = "";
 
@@ -1179,11 +1179,16 @@ std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int t
     unsigned char mac[6] = { 0 };
     in_addr addr;
     addr.s_addr = NetworkHelper::IPStr2Addr(_ip).s_addr;
+    in_addr src_addr = { 0 };
+    if (!src_ip.empty())
+    {
+        src_addr.s_addr = NetworkHelper::IPStr2Addr(src_ip).s_addr;
+    }
     u_long Len = sizeof(mac);
 #if defined(_MSC_VER)
-    u_int RetD = SendARP(addr.s_addr, 0, mac, &Len);
+    u_int RetD = SendARP(addr.s_addr, src_addr.s_addr, mac, &Len);
 #elif defined(__GNUC__)
-    u_int RetD = SendARP(addr.s_addr, 0, mac, &Len, timeout);
+    u_int RetD = SendARP(addr.s_addr, src_addr.s_addr, mac, &Len, timeout);
 #else
 #error unsupported compiler
 #endif
@@ -1218,7 +1223,7 @@ std::string NetworkInfoHelper::GetMacFromAddress(const std::string& _ip, u_int t
     return ret;
 }
 
-std::string NetworkInfoHelper::GetMacFromAddress(const in_addr & _ip, u_int timeout, int eth_index)
+std::string NetworkInfoHelper::GetMacFromAddress(const in_addr & _ip, u_int timeout, int eth_index, const in_addr& src_ip)
 {
     std::string ret = "";
 
@@ -1228,9 +1233,9 @@ std::string NetworkInfoHelper::GetMacFromAddress(const in_addr & _ip, u_int time
     unsigned char mac[6] = { 0 };
     u_long Len = sizeof(mac);
 #if defined(_MSC_VER)
-    u_int RetD = SendARP(_ip.s_addr, 0, mac, &Len);
+    u_int RetD = SendARP(_ip.s_addr, src_ip.s_addr, mac, &Len);
 #elif defined(__GNUC__)
-    u_int RetD = SendARP(_ip.s_addr, 0, mac, &Len, timeout);
+    u_int RetD = SendARP(_ip.s_addr, src_ip.s_addr, mac, &Len, timeout);
 #else
 #error unsupported compiler
 #endif

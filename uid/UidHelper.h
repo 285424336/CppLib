@@ -5,7 +5,6 @@
 #if defined(_MSC_VER)
 #include <ShlObj.h>
 #elif defined(__GNUC__)
-#include <uuid/uuid.h>
 #else
 #error unsupported compiler
 #endif
@@ -29,6 +28,7 @@ public:
     *generate the Universally Unique Identifier
     */
     static std::string GenerateUUID();
+#if defined(_MSC_VER)
     /**
     *convert the uid to string
     *uuid(in): the GUID or UUID
@@ -39,6 +39,10 @@ public:
     *uuid(in): the GUID string
     */
     static UUID StringToUUID(const std::wstring &uuid);
+#elif defined(__GNUC__)
+#else
+#error unsupported compiler
+#endif
 };
 
 #endif

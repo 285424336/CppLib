@@ -341,13 +341,13 @@ public:
             if (fd < 0) exit(0);
             if (dup2(fd, 1) < 0) exit(0);
             if (dup2(fd, 2) < 0) exit(0);
-            args = StringHelper::split(cmd, " ");
+            args = ParseCMDLineToArgs(cmd);
             for (auto arg : args)
             {
                 if (arg.empty()) continue;
                 argv[i++] = (char *)arg.c_str();
             }
-            execvp(argv[0], &argv[1]);
+            execvp(argv[0], &argv[0]);
             exit(0);
             break;
         }
@@ -374,6 +374,107 @@ public:
 #error unsupported compiler
 #endif
     }
-};
 
+private:
+    typedef enum
+    {
+        CMD_PARSE_NORMAL,
+        CMD_PARSE_IN_DQUOT,
+        CMD_PARSE_IN_SQUOT,
+    }CMD_PARSE_STAT;
+
+    static std::vector<std::string> ParseCMDLineToArgs(const std::string &cmd)
+    {
+        std::vector<std::string> result;
+        const char blank = ' ';
+        const char dquot = '"';
+        const char squot = '\'';
+        CMD_PARSE_STAT stat = CMD_PARSE_NORMAL;
+        std::string arg;
+        std::string cmd_tmp = cmd + " ";
+        for (auto s : cmd_tmp)
+        {
+            switch (stat)
+            {
+            case CMD_PARSE_NORMAL:
+            {
+                switch (s)
+                {
+                case blank:
+                {
+                    if (!arg.empty())
+                    {
+                        result.emplace_back(arg);
+                        arg.clear();
+                    }
+                }
+                break;
+                case dquot:
+                {
+                    stat = CMD_PARSE_IN_DQUOT;
+                }
+                break;
+                case squot:
+                {
+                    stat = CMD_PARSE_IN_SQUOT;
+                }
+                break;
+                default:
+                {
+                    arg.append(&s, 1);
+                }
+                break;
+                }
+            }
+            break;
+            case CMD_PARSE_IN_DQUOT:
+            {
+                switch (s)
+                {
+                case dquot:
+                {
+                    stat = CMD_PARSE_NORMAL;
+                }
+                break;
+                case blank:
+                case squot:
+                default:
+                {
+                    arg.append(&s, 1);
+                }
+                break;
+                }
+            }
+            break;
+            case CMD_PARSE_IN_SQUOT:
+            {
+                switch (s)
+                {
+                case squot:
+                {
+                    stat = CMD_PARSE_NORMAL;
+                }
+                break;
+                case blank:
+                case dquot:
+                default:
+                {
+                    arg.append(&s, 1);
+                }
+                break;
+                }
+            }
+            break;
+            default:
+                return std::vector<std::string>();
+                break;
+            }
+        }
+        if (stat != CMD_PARSE_NORMAL)
+        {
+            return std::vector<std::string>();
+        }
+        return result;
+    }
+};
 #endif
