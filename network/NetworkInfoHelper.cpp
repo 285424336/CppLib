@@ -1360,7 +1360,7 @@ u_int NetworkInfoHelper::SendARPPrivate(u_int DestIP, const AdaptInfo &info, u_c
     if (rawSock == -1) return -1;
 
     struct timeval recv_time_out = { 0 };
-    recv_time_out.tv_usec = 500;
+    recv_time_out.tv_usec = 100 * 1000;
     if (setsockopt(rawSock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&recv_time_out, sizeof(recv_time_out)) != 0)
     {
         close(rawSock);
@@ -1368,7 +1368,7 @@ u_int NetworkInfoHelper::SendARPPrivate(u_int DestIP, const AdaptInfo &info, u_c
     }
 
     struct timeval  send_time_out = { 0 };
-    send_time_out.tv_usec = 500;
+    send_time_out.tv_usec = 100 * 1000;
     if (setsockopt(rawSock, SOL_SOCKET, SO_SNDTIMEO, (const char *)&send_time_out, sizeof(send_time_out)) != 0)
     {
         close(rawSock);
@@ -1381,8 +1381,6 @@ u_int NetworkInfoHelper::SendARPPrivate(u_int DestIP, const AdaptInfo &info, u_c
     struct sockaddr_ll saddr_ll = { 0 };
     saddr_ll.sll_ifindex = info.index;
     saddr_ll.sll_family = AF_PACKET;
-    for (int i = 0; i<3; i++)
-        sendto(rawSock, (char *)&pack, sizeof(pack), 0, (struct sockaddr *)&saddr_ll, sizeof(struct sockaddr_ll));
 
     const int szPlanRecv = sizeof(pack);
     uint8_t ucBuffer[szPlanRecv] = { 0 };
@@ -1391,6 +1389,7 @@ u_int NetworkInfoHelper::SendARPPrivate(u_int DestIP, const AdaptInfo &info, u_c
     unsigned long long start = tmp.tv_sec * 1000000 + tmp.tv_usec;
     while (1)
     {
+        sendto(rawSock, (char *)&pack, sizeof(pack), 0, (struct sockaddr *)&saddr_ll, sizeof(struct sockaddr_ll));
         ssize_t szRecv = recv(rawSock, ucBuffer, szPlanRecv, 0);
         if (szRecv == szPlanRecv)
         {

@@ -319,7 +319,7 @@ public:
         return result;
 
 #elif defined(__GNUC__)
-        std::string file_name = StringHelper::convert<std::string>(rand()) + StringHelper::convert<std::string>(rand()) + ".tmp";
+        std::string file_name = "/tmp/" + StringHelper::convert<std::string>(rand()) + StringHelper::convert<std::string>(rand()) + ".tmp";
         pid_t pid;
         int status;
         pid = fork();

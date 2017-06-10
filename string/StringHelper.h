@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <iomanip>
 #include <sstream>
+#include <typeinfo>
 
 #define HEX_STR_TO_NUM(c) (((0X40&(c))>>6)*9+(0X0F&(c))) //you must make sure the c is hex str
 

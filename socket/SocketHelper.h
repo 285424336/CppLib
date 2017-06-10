@@ -132,7 +132,17 @@ public:
     virtual void UnInit()
     {
         if (!m_is_init) return;
-        if (m_sock != -1) CloseSocket(m_sock);
+        if (m_sock != -1)
+        {
+            if (m_is_multicast)
+            {
+                ip_mreq mreq = { 0 };
+                mreq.imr_multiaddr.s_addr = m_multi_ip;
+                mreq.imr_interface.s_addr = m_src_ip;
+                setsockopt(m_sock, IPPROTO_IP, IP_DROP_MEMBERSHIP, (const char *)&mreq, sizeof(mreq));
+            }
+            CloseSocket(m_sock);
+        }
         SocketEvnCleanUp();
         m_is_init = false;
     }
