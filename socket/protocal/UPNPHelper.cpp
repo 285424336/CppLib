@@ -6,6 +6,13 @@
 #include <iostream>
 #endif
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 sockaddr_in UPNPHelper::m_upnp_addr = GetUPNPSockaddr();
 char UPNPHelper::m_upnp_search[] = "M-SEARCH * HTTP/1.1\r\nHost: 239.255.255.250:1900\r\nMan: \"ssdp:discover\"\r\nMx: 3\r\nST: upnp:rootdevice\r\n\r\n";
 
