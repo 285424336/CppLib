@@ -134,7 +134,7 @@ namespace NBNSQueryBody
     };
 };
 
-struct RecuName
+struct NBNSRecuName
 {
 #ifdef _BIG_ENDIAN
     union

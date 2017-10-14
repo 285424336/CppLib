@@ -11,6 +11,7 @@
 #include <vector>
 #include <map>
 #include <iostream>
+#include <mutex>
 
 #define DEFALUT_WMI_NAMESPACE L"ROOT\\DEFAULT"
 #define SECURITY_WMI_NAMESPACE L"ROOT\\SECURITY"
@@ -109,6 +110,14 @@ public:
     */
     virtual bool QueryStr(std::wstring &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
     /**
+    *exec the query and get the specify string type property value
+    *result(out) the result
+    *wszWQLQuery(in) the query wql
+    *wszProperty(in) the specify property
+    *return true-success false-failed
+    */
+    virtual bool QueryStr(std::vector<std::wstring> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
+    /**
     *exec the query and get the specify int type property value
     *result(out) the result
     *wszWQLQuery(in) the query wql
@@ -116,6 +125,14 @@ public:
     *return true-success false-failed
     */
     virtual bool QueryInt(long long &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
+    /**
+    *exec the query and get the specify int type property value
+    *result(out) the result
+    *wszWQLQuery(in) the query wql
+    *wszProperty(in) the specify property
+    *return true-success false-failed
+    */
+    virtual bool QueryInt(std::vector<long long> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
     /**
     *exec the query and get the specify uint type property value
     *result(out) the result
@@ -125,6 +142,14 @@ public:
     */
     virtual bool QueryUnInt(unsigned long long &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
     /**
+    *exec the query and get the specify uint type property value
+    *result(out) the result
+    *wszWQLQuery(in) the query wql
+    *wszProperty(in) the specify property
+    *return true-success false-failed
+    */
+    virtual bool QueryUnInt(std::vector<unsigned long long> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
+    /**
     *exec the query and get the specify bool type property value
     *result(out) the result
     *wszWQLQuery(in) the query wql
@@ -132,6 +157,14 @@ public:
     *return true-success false-failed
     */
     virtual bool QueryBool(bool &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
+    /**
+    *exec the query and get the specify bool type property value
+    *result(out) the result
+    *wszWQLQuery(in) the query wql
+    *wszProperty(in) the specify property
+    *return true-success false-failed
+    */
+    virtual bool QueryBool(std::vector<bool> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty);
     /**
     *exec the query and enum all property value
     *result(out) the results
@@ -206,10 +239,72 @@ protected:
     virtual HRESULT Connect2WMI(CComPtr<IWbemLocator> pLoc);
     virtual HRESULT SetProxySecLevels();
     virtual HRESULT ExecQuery(const std::wstring &wszWQLQuery, std::function<HRESULT(CComPtr<IWbemClassObject>)>);
+    virtual HRESULT ExecQueryList(const std::wstring &wszWQLQuery, std::function<HRESULT(CComPtr<IWbemClassObject>)>);
     virtual HRESULT NotificationExecQuery(const std::wstring &wszWQLQuery, HANDLE stopEvent, int millTimeOut, std::function<HRESULT(CComPtr<IWbemClassObject>)>);
     virtual WMIExecValue CComVariant2WMIExecValue(const CComVariant& value, const std::wstring &name);
 
 private:
     std::wstring m_wstrNamespace;
     CComPtr<IWbemServices> m_pSvc;
+};
+
+typedef enum {
+    WMI_EASY_QUERY_STR_HOST_NAME = 0,
+    WMI_EASY_QUERY_STR_MODEL = 1,
+    WMI_EASY_QUERY_STR_VENDOR = 2,
+    WMI_EASY_QUERY_STR_MANUFACTURER = 3,
+    WMI_EASY_QUERY_STR_OS_VERSION = 4,
+    WMI_EASY_QUERY_STR_CPU_VENDOR = 5,
+    WMI_EASY_QUERY_STR_DISK_VENDOR = 6,
+    WMI_EASY_QUERY_STR_MEMORY_MANUFACTURER = 7,
+    WMI_EASY_QUERY_STR_NETWORK_ADAPTER_VENDOR = 8,
+    WMI_EASY_QUERY_STR_MAX
+}WMI_EASY_QUERY_STR;
+
+typedef struct {
+    WMI_EASY_QUERY_STR index;
+    std::wstring wszNamespace;
+    std::wstring wszQueryStatement;
+    std::wstring wszWQLQueryClsObj;
+    bool         is_volatile;
+}WmiQueryObj;
+
+class WMIEasyQuery
+{
+public:
+    /**
+    *get the string result of the object from wmi, if there exist more than one, only return the first one
+    *index(in): the object you want to query
+    *return result of the query
+    */
+    static std::wstring QueryStr(WMI_EASY_QUERY_STR index);
+    /**
+    *get the string results of the object from wmi, if there exist more than one, return all result
+    *index(in): the object you want to query
+    *return results of the query
+    */
+    static std::vector<std::wstring> QueryStrList(WMI_EASY_QUERY_STR index);
+
+private:
+    static bool Init();
+
+private:
+    WMIEasyQuery(const std::wstring &wszNamespace, const std::wstring &wszQueryStatement, const std::wstring &wszWQLQueryClsObj, bool is_volatile)
+        : m_wszNamespace(wszNamespace), m_wszQueryStatement(wszQueryStatement), m_wszWQLQueryClsObj(wszWQLQueryClsObj), m_is_volatile(is_volatile), m_result(), m_result_list()
+    {
+
+    }
+
+private:
+    std::wstring m_wszNamespace;
+    std::wstring m_wszQueryStatement;
+    std::wstring m_wszWQLQueryClsObj;
+    bool         m_is_volatile;
+    std::wstring m_result;
+    std::vector<std::wstring> m_result_list;
+
+private:
+    static bool                                       is_init;
+    static std::map<WMI_EASY_QUERY_STR, std::shared_ptr<WMIEasyQuery>> str_query_map;
+    static WmiQueryObj                                str_query_list[];
 };

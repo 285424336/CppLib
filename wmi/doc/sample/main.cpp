@@ -67,14 +67,42 @@ void WMIExecMethodTest()
     std::wcout << "exec cmd ret " << ret << " exec return " << execRet << std::endl;
 }
 
+void WMIEasyQueryStringTest()
+{
+    std::cout << __FUNCTION__ << "********************TEST*******************" << std::endl;
+    for (u_int i = 0; i < WMI_EASY_QUERY_STR_MAX; i++)
+    {
+        std::wcout << WMIEasyQuery::QueryStr((WMI_EASY_QUERY_STR)i) << std::endl;
+    }
+}
+
+void WMIEasyQueryStringListTest()
+{
+    std::cout << __FUNCTION__ << "********************TEST*******************" << std::endl;
+    for (u_int i = 0; i < WMI_EASY_QUERY_STR_MAX; i++)
+    {
+        std::vector<std::wstring> results = WMIEasyQuery::QueryStrList((WMI_EASY_QUERY_STR)i);
+        for (auto result : results) 
+        {
+            std::wcout << "[" << result << "] ";
+        }
+        std::wcout << std::endl;
+    }
+}
+
 int main()
 {
     wmi.Connect();
     WMIQueryStrTest();
-    WMIQueryEnumTest();
-    WMINotificationQueryStrTest();
-    WMINotificationQueryEnumTest();
-    WMIExecMethodTest();
+    //WMIQueryEnumTest();
+    //WMINotificationQueryStrTest();
+    //WMINotificationQueryEnumTest();
+    //WMIExecMethodTest();
+
+    while (1) {
+        WMIEasyQueryStringTest();
+        WMIEasyQueryStringListTest();
+    }
     while(1)
     {
         Sleep(1000);

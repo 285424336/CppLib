@@ -10,6 +10,14 @@
 #ifdef DEBUG
 #include <iostream>
 #endif
+
+#ifdef min
+#undef min
+#endif // min
+#ifdef max
+#undef max
+#endif // min
+
 sockaddr_in NBNSHelper::m_nbns_addr = NBNSHelper::GetNBNSSockaddr();
 NBNSHelper::TypeDataOpType NBNSHelper::m_nbns_type_data_op = RegistTypeDataOp();
 
@@ -224,7 +232,7 @@ bool NBNSHelper::DecodeDotStr(std::string &type, const char *packet, int size, i
         }
         else
         {
-            RecuName name = { 0 };
+            NBNSRecuName name = { 0 };
             memcpy(&name, &p[pos], sizeof(name));
             name.name.name = ntohs(name.name.name);
             int recu_pos = name.name.name_in.off;
@@ -240,7 +248,7 @@ bool NBNSHelper::DecodeDotStr(std::string &type, const char *packet, int size, i
 
 bool NBNSHelper::RecvNextNBSTATResponce(std::string &from_ip, NBStatTypeNameMap &info)
 {
-    static char recvbuf[NBNS_RESPONCE_BUFSIZE] = { 0 };
+    char recvbuf[NBNS_RESPONCE_BUFSIZE] = { 0 };
 
     SOCKET fd = GetSocket();
     if (fd == -1) return false;

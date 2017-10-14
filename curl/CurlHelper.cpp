@@ -1,11 +1,12 @@
 #include "CurlHelper.h"
 #include <sstream>
 
-u_int CurlHelper::CurlGetString(const std::vector<std::string> &vec_headers, u_int *res_code, std::string *res_body, HttpHeader *res_header)
+u_int CurlHelper::CurlGetString(const std::vector<std::string> &vec_headers, u_int *res_code, std::string *res_body, HttpHeader *res_header, std::vector<std::map<std::string, std::string>> *peer_cert_infos)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
     u_int ret = CURLE_OK;
+    long code = 0;//must be long type
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
@@ -15,14 +16,13 @@ u_int CurlHelper::CurlGetString(const std::vector<std::string> &vec_headers, u_i
         headers = curl_slist_append(headers, it->c_str());
     }
 
-    CurlOptionSet(curl, headers, res_header, res_body);
+    CurlOptionSet(curl, headers, res_header, res_body, NULL, false, "", NULL, peer_cert_infos!=NULL);
 
     ret = curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
 
     if (res_code)
     {
-        long code = 0;//must be long type
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         *res_code = code;
     }
 
@@ -31,16 +31,55 @@ u_int CurlHelper::CurlGetString(const std::vector<std::string> &vec_headers, u_i
         curl_slist_free_all(headers);
     }
 
+    std::string location_url;
+    if (ret == CURLE_OK && code >= 300 && code < 400 && m_is_follow_redir && m_max_redir)
+    {
+        char *url = NULL;
+        curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &url);
+        if (url)
+        {
+            location_url = url;
+        }
+    }
+
+    if (!ret && peer_cert_infos) {
+        struct curl_certinfo *ci;
+        ret = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
+        if (!ret) {
+            for (int i = 0; i < ci->num_of_certs; i++) {
+                struct curl_slist *slist;
+                std::map<std::string, std::string> cert_info;
+                for (slist = ci->certinfo[i]; slist; slist = slist->next) {
+                    std::string info = slist->data;
+                    size_t pos = info.find_first_of(":");
+                    if (pos != std::string::npos) {
+                        cert_info[std::string(info, 0, pos)] = std::string(info, pos + 1);
+                    }
+                }
+                peer_cert_infos->emplace_back(cert_info);
+            }
+        }
+    }
     curl_easy_cleanup(curl);
+
+    if (!location_url.empty()) 
+    {
+        if (res_body) res_body->clear();
+        if (res_header) res_header->clear();
+        if (peer_cert_infos) peer_cert_infos->clear();
+        CurlHelper inner(location_url, false, "", m_is_need_proxy, m_proxy, m_time_out, true, m_max_redir - 1);
+        return inner.CurlGetString(vec_headers, res_code, res_body, res_header, peer_cert_infos);
+    }
     return ret;
 }
 
-u_int CurlHelper::CurlGetFile(const std::vector<std::string> &vec_headers, u_int *res_code, std::string *file_name, HttpHeader *res_header)
+u_int CurlHelper::CurlGetFile(const std::vector<std::string> &vec_headers, u_int *res_code, std::string *file_name, HttpHeader *res_header, std::vector<std::map<std::string, std::string>> *peer_cert_infos)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
     u_int ret = CURLE_OK;
     FILE *file = NULL;
+    long code = 0;//must be long type
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
@@ -63,14 +102,13 @@ u_int CurlHelper::CurlGetFile(const std::vector<std::string> &vec_headers, u_int
 #endif
     }
 
-    CurlOptionSet(curl, headers, res_header, NULL, file);
+    CurlOptionSet(curl, headers, res_header, NULL, file, false, "", NULL, peer_cert_infos != NULL);
 
     ret = curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
 
     if (res_code)
     {
-        long code = 0;//must be long type
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         *res_code = code;
     }
 
@@ -83,15 +121,54 @@ u_int CurlHelper::CurlGetFile(const std::vector<std::string> &vec_headers, u_int
     {
         fclose(file);
     }
+
+    std::string location_url;
+    if (ret == CURLE_OK && code >= 300 && code < 400 && m_is_follow_redir && m_max_redir)
+    {
+        char *url = NULL;
+        curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &url);
+        if (url)
+        {
+            location_url = url;
+        }
+    }
+
+    if (!ret && peer_cert_infos) {
+        struct curl_certinfo *ci;
+        ret = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
+        if (!ret) {
+            for (int i = 0; i < ci->num_of_certs; i++) {
+                struct curl_slist *slist;
+                std::map<std::string, std::string> cert_info;
+                for (slist = ci->certinfo[i]; slist; slist = slist->next) {
+                    std::string info = slist->data;
+                    size_t pos = info.find_first_of(":");
+                    if (pos != std::string::npos) {
+                        cert_info[std::string(info, 0, pos)] = std::string(info, pos + 1);
+                    }
+                }
+                peer_cert_infos->emplace_back(cert_info);
+            }
+        }
+    }
     curl_easy_cleanup(curl);
+
+    if (!location_url.empty()) 
+    {
+        if (res_header) res_header->clear();
+        if (peer_cert_infos) peer_cert_infos->clear();
+        CurlHelper inner(location_url, false, "", m_is_need_proxy, m_proxy, m_time_out, true, m_max_redir - 1);
+        return inner.CurlGetFile(vec_headers, res_code, file_name, res_header, peer_cert_infos);
+    }
     return ret;
 }
 
-u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, const std::string &post_body, u_int *res_code, std::string *res_body, HttpHeader *res_header)
+u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, const std::string &post_body, u_int *res_code, std::string *res_body, HttpHeader *res_header, std::vector<std::map<std::string, std::string>> *peer_cert_infos)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
     u_int ret = CURLE_OK;
+    long code = 0;//must be long type
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
@@ -101,13 +178,13 @@ u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, co
         headers = curl_slist_append(headers, it->c_str());
     }
 
-    CurlOptionSet(curl, headers, res_header, res_body, NULL, true, post_body);
+    CurlOptionSet(curl, headers, res_header, res_body, NULL, true, post_body, NULL, peer_cert_infos != NULL);
 
     ret = curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
+
     if (res_code)
     {
-        long code = 0;//must be long type
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         *res_code = code;
     }
 
@@ -116,17 +193,56 @@ u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, co
         curl_slist_free_all(headers);
     }
 
+    std::string location_url;
+    if (ret == CURLE_OK && code >= 300 && code < 400 && m_is_follow_redir && m_max_redir)
+    {
+        char *url = NULL;
+        curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &url);
+        if (url)
+        {
+            location_url = url;
+        }
+    }
+
+    if (!ret && peer_cert_infos) {
+        struct curl_certinfo *ci;
+        ret = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
+        if (!ret) {
+            for (int i = 0; i < ci->num_of_certs; i++) {
+                struct curl_slist *slist;
+                std::map<std::string, std::string> cert_info;
+                for (slist = ci->certinfo[i]; slist; slist = slist->next) {
+                    std::string info = slist->data;
+                    size_t pos = info.find_first_of(":");
+                    if (pos != std::string::npos) {
+                        cert_info[std::string(info, 0, pos)] = std::string(info, pos + 1);
+                    }
+                }
+                peer_cert_infos->emplace_back(cert_info);
+            }
+        }
+    }
     curl_easy_cleanup(curl);
+
+    if (!location_url.empty())
+    {
+        if (res_body) res_body->clear();
+        if (res_header) res_header->clear();
+        if (peer_cert_infos) peer_cert_infos->clear();
+        CurlHelper inner(location_url, false, "", m_is_need_proxy, m_proxy, m_time_out, true, m_max_redir - 1);
+        return inner.CurlPostString(vec_headers, post_body, res_code, res_body, res_header, peer_cert_infos);
+    }
     return ret;
 }
 
-u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, const std::vector<std::pair<std::string, std::string>> &post_datas, const std::set<std::string> &file_paths, u_int *res_code, std::string *res_body, HttpHeader *res_header)
+u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, const std::vector<std::pair<std::string, std::string> > &post_datas, const std::set<std::string> &file_paths, u_int *res_code, std::string *res_body, HttpHeader *res_header, std::vector<std::map<std::string, std::string>> *peer_cert_infos)
 {
     CURL* curl = curl_easy_init();
     struct curl_slist *headers = NULL;
     u_int ret = CURLE_OK;
     struct curl_httppost* post = NULL;
     struct curl_httppost* last = NULL;
+    long code = 0; //must be long type
 
     if (curl == NULL) return CURLE_FAILED_INIT;
 
@@ -148,13 +264,12 @@ u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, co
         curl_formadd(&post, &last, CURLFORM_COPYNAME, "file", CURLFORM_FILE, (*sit).c_str(), CURLFORM_END);
     }
 
-    CurlOptionSet(curl, headers, res_header, res_body, NULL, true, std::string(""), post);
+    CurlOptionSet(curl, headers, res_header, res_body, NULL, true, std::string(""), post, peer_cert_infos != NULL);
 
     ret = curl_easy_perform(curl);
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
     if (res_code)
     {
-        long code = 0; //must be long type
-        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code);
         *res_code = code;
     }
 
@@ -168,7 +283,45 @@ u_int CurlHelper::CurlPostString(const std::vector<std::string> &vec_headers, co
         curl_formfree(post);
     }
 
+    std::string location_url;
+    if (ret == CURLE_OK && code >= 300 && code < 400 && m_is_follow_redir && m_max_redir)
+    {
+        char *url = NULL;
+        curl_easy_getinfo(curl, CURLINFO_REDIRECT_URL, &url);
+        if (url)
+        {
+            location_url = url;
+        }
+    }
+
+    if (!ret && peer_cert_infos) {
+        struct curl_certinfo *ci;
+        ret = curl_easy_getinfo(curl, CURLINFO_CERTINFO, &ci);
+        if (!ret) {
+            for (int i = 0; i < ci->num_of_certs; i++) {
+                struct curl_slist *slist;
+                std::map<std::string, std::string> cert_info;
+                for (slist = ci->certinfo[i]; slist; slist = slist->next) {
+                    std::string info = slist->data;
+                    size_t pos = info.find_first_of(":");
+                    if (pos != std::string::npos) {
+                        cert_info[std::string(info, 0, pos)] = std::string(info, pos + 1);
+                    }
+                }
+                peer_cert_infos->emplace_back(cert_info);
+            }
+        }
+    }
     curl_easy_cleanup(curl);
+
+    if (!location_url.empty()) 
+    {
+        if (res_body) res_body->clear();
+        if (res_header) res_header->clear();
+        if (peer_cert_infos) peer_cert_infos->clear();
+        CurlHelper inner(location_url, false, "", m_is_need_proxy, m_proxy, m_time_out, true, m_max_redir - 1);
+        return inner.CurlPostString(vec_headers, post_datas, file_paths, res_code, res_body, res_header, peer_cert_infos);
+    }
     return ret;
 }
 
@@ -225,16 +378,22 @@ size_t CurlHelper::CurlMapHeaderWriteCallback(void* buffer, size_t size, size_t 
     return bytes;
 }
 
-void CurlHelper::CurlOptionSet(CURL* curl, curl_slist *headers, HttpHeader *res_header, std::string *res_body, FILE *save_file, bool is_post, const std::string &post_body, struct curl_httppost* post)
+void CurlHelper::CurlOptionSet(CURL* curl, curl_slist *headers, HttpHeader *res_header, std::string *res_body, FILE *save_file, bool is_post, const std::string &post_body, struct curl_httppost* post, bool is_need_cert_info)
 {
     curl_easy_setopt(curl, CURLOPT_URL, m_url.c_str());
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, m_time_out);
     curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, m_err_info);
+
     if (m_is_need_ssl_auth)
     {
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 1L);//VERIFY the digital signatures with the ca set in opt CURLOPT_CAINFO
         curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 2L);//VERIFY the host name with the ca set in opt CURLOPT_CAINFO
         if (!m_ssl_cainfo.empty()) curl_easy_setopt(curl, CURLOPT_CAINFO, m_ssl_cainfo.c_str());//set the ca path
+    }
+    else
+    {
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);//VERIFY the digital signatures with the ca set in opt CURLOPT_CAINFO
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);//VERIFY the host name with the ca set in opt CURLOPT_CAINFO
     }
 
     if (headers)
@@ -284,5 +443,19 @@ void CurlHelper::CurlOptionSet(CURL* curl, curl_slist *headers, HttpHeader *res_
     else
     {
         curl_easy_setopt(curl, CURLOPT_POST, 0L);
+    }
+
+    if (is_need_cert_info)
+    {
+        curl_easy_setopt(curl, CURLOPT_CERTINFO, 1L);
+    }
+    else
+    {
+        curl_easy_setopt(curl, CURLOPT_CERTINFO, 0L);
+    }
+
+    if (m_accept_encode)
+    {
+        curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
     }
 }

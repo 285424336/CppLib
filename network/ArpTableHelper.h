@@ -1,4 +1,5 @@
-#pragma once
+#ifndef ARPTABLE_HELPER_H_INCLUDED
+#define ARPTABLE_HELPER_H_INCLUDED
 
 #include <map>
 #include <string>
@@ -15,3 +16,5 @@ public:
     */
     static bool DeleteArpTable(const unsigned int eth_index);
 };
+
+#endif

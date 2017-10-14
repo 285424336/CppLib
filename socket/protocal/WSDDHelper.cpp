@@ -15,7 +15,7 @@
 
 sockaddr_in WSDDHelper::g_wsdd_addr = GetWSDDSockaddr();
 char WSDDHelper::g_wsdd_probe[] = "<s:Envelope xmlns:s=\"http://www.w3.org/2003/05/soap-envelope\" xmlns:a=\"http://schemas.xmlsoap.org/ws/2004/08/addressing\" xmlns:d=\"http://schemas.xmlsoap.org/ws/2005/04/discovery\"><s:Header><a:Action s:mustUnderstand=\"1\">http://schemas.xmlsoap.org/ws/2005/04/discovery/Probe</a:Action><a:MessageID>urn:uuid:f8b67a0a-6d5f-475d-5165-0a7f003b4fc6</a:MessageID><a:To s:mustUnderstand=\"1\">urn:schemas-xmlsoap-org:ws:2005:04:discovery</a:To></s:Header><s:Body><d:Probe/></s:Body></s:Envelope>";
-std::pair<std::string,std::string> WSDDHelper::g_wsdd_deal_list[] = {
+std::pair<std::string,std::string> WSDDHelper::g_wsdd_deal_list[2] = {
     {"http://schemas.xmlsoap.org/ws/2005/04/discovery/ProbeMatches", "ProbeMatches"},
     {"http://schemas.xmlsoap.org/ws/2005/04/discovery/Hello", "Hello"}
 };
@@ -46,7 +46,7 @@ bool WSDDHelper::SendWSDDProbe()
 
 bool WSDDHelper::RecvNextWSDDData(std::string &from_ip, Json::Value &info)
 {
-    static char recvbuf[WSDD_RESPONCE_BUFSIZE] = { 0 };
+    char recvbuf[WSDD_RESPONCE_BUFSIZE] = { 0 };
 
     SOCKET fd = GetSocket();
     if (fd == -1) return false;

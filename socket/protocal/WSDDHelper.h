@@ -36,7 +36,7 @@ public:
     /**
     *eth_ip: which eth you want to bind to send upnp multcast, empty for all eth
     */
-    WSDDHelper(u_int src_ip = INADDR_ANY) : MulticastSocket(src_ip, htons(WSDD_MCAST_PORT), htonl(WSDD_MCAST_ADDR_INT)) {}
+    WSDDHelper(u_int src_ip = INADDR_ANY, u_short src_port = 0) : MulticastSocket(src_ip, src_port, htonl(WSDD_MCAST_ADDR_INT)) {}
     ~WSDDHelper(){}
     /**
     *send wsdd muiltcast
@@ -49,7 +49,7 @@ public:
     */
     bool RecvNextWSDDData(std::string &from_ip, Json::Value &info);
 
-private:
+public:
     static sockaddr_in GetWSDDSockaddr();
     static std::string GetXmlNameWithoutNamespace(const std::string &name);
     static void GetSoapWsdNamespace(std::string &soap_namespace, std::string &wsd_name_space, const pugi::xml_node &root);
@@ -57,10 +57,12 @@ private:
     static void RepeatWalkXml(Json::Value &info, pugi::xml_node &node);
     static bool GetWSDDDataInfo(Json::Value &info, char *data, int size);
 
+public:
+    static std::pair<std::string, std::string> g_wsdd_deal_list[2];
+
 private:
     static sockaddr_in g_wsdd_addr;
     static char        g_wsdd_probe[];
-    static std::pair<std::string, std::string> g_wsdd_deal_list[];
 };
 
 #endif

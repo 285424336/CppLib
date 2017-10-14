@@ -554,8 +554,6 @@ std::string FileHelper::GetFileContent(const std::string& file_path)
 */
 bool FileHelper::SetFileContent(const std::string& file_path, const char *buf, size_t buf_size, bool append)
 {
-    if (buf == NULL) return false;
-    if (!buf_size) return true;
     std::string dir = GetDirInPath(file_path);
     if (!dir.empty())
     {
@@ -563,7 +561,23 @@ bool FileHelper::SetFileContent(const std::string& file_path, const char *buf, s
     }
     std::ofstream file(file_path, std::ios::binary | (append ? std::ios::app : (decltype(std::ios::binary))0));
     if (!file) return false;
+    if (buf==NULL || !buf_size) return true;
     file.write(buf, buf_size);
+    if (!file.good()) return false;
+    return true;
+}
+
+bool FileHelper::SetFileContent(const std::string& file_path, const std::string &content, bool append)
+{
+    return SetFileContent(file_path, content.c_str(), content.size(), append);
+}
+
+bool FileHelper::ClearFileContent(const std::string& file_path)
+{
+    if (!IsExist(file_path)) return true;
+    std::ofstream file(file_path, std::ios::binary);
+    if (!file) return false;
+    file.clear();
     if (!file.good()) return false;
     return true;
 }

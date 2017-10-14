@@ -1,3 +1,5 @@
+#ifndef DHCP_HELPER_H_INCLUDED
+#define DHCP_HELPER_H_INCLUDED
 
 #if defined(_MSC_VER)
 #include <socket\SocketHelper.h>
@@ -120,3 +122,5 @@ private:
     static unsigned char* GetOptionEntityFromDHCPPkt(const dhcp_packet_t *_packet, int _sizetPacketSize, dhcp_option_code _opCode);
     static unsigned char GetOptionEntityLen(const unsigned char* _ptrOptionEntity);
 };
+
+#endif

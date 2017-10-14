@@ -3,6 +3,7 @@
 
 #include <string>
 #include <mutex>
+#include <map>
 #include "NetworkHelper.h"
 #if defined(_MSC_VER)
 #include <ImageHlp.h>
@@ -26,6 +27,8 @@
 #ifndef IF_NAMESIZE
 #define IF_NAMESIZE 16
 #endif
+
+#define NETWORK_INFO_MAC_SPLITE ":"
 
 class NetworkInfoHelper
 {
@@ -68,13 +71,31 @@ public:
 #error unsupported compiler
 #endif
 
-    typedef struct route_info_t
+    class RouteInfo
     {
+    public:
+        RouteInfo():dstAddr(0), dstmask(0), srcAddr(0), gateWay(0), metric(0), index(-1)
+        {
+        }
         u_int dstAddr;
+        u_int dstmask;
         u_int srcAddr;
         u_int gateWay;
+        u_int metric;
         u_int index;
-    }RouteInfo;
+    };
+
+    class Route
+    {
+    public:
+        Route() :dstAddr(0), srcAddr(0), srcMac{ 0 }, index(-1)
+        {
+        }
+        u_int  dstAddr;
+        u_int  srcAddr;
+        u_char srcMac[6];
+        u_int  index;
+    };
 
     class WifiInfo
     {
@@ -164,9 +185,13 @@ public:
             this->gateway_ip_address = info.gateway_ip_address;
             this->gateway_ip_address_int = info.gateway_ip_address_int;
             this->gateway_mac_address = info.gateway_mac_address;
+            memcpy(this->gateway_mac_address_int, info.gateway_mac_address_int, sizeof(this->gateway_mac_address_int));
             this->local_ip_address = info.local_ip_address;
             this->local_ip_address_int = info.local_ip_address_int;
+            this->local_ipv6_address = info.local_ipv6_address;
+            this->local_ipv6_address_int = info.local_ipv6_address_int;
             this->local_mac_address = info.local_mac_address;
+            memcpy(this->local_mac_address_int, info.local_mac_address_int, sizeof(this->local_mac_address_int));
             this->subnet_ip_mask = info.subnet_ip_mask;
             this->subnet_ip_mask_int = info.subnet_ip_mask_int;
             this->index = info.index;
@@ -183,9 +208,13 @@ public:
             this->gateway_ip_address = "";
             this->gateway_ip_address_int.s_addr = 0;
             this->gateway_mac_address = "";
+            memset(this->gateway_mac_address_int, 0, sizeof(this->gateway_mac_address_int));
             this->local_ip_address = "";
             this->local_ip_address_int.s_addr = 0;
+            this->local_ipv6_address = "";
+            memset(&this->local_ipv6_address_int, 0, sizeof(this->local_ipv6_address_int));
             this->local_mac_address = "";
+            memset(this->local_mac_address_int, 0, sizeof(this->local_mac_address_int));
             this->subnet_ip_mask = "";
             this->subnet_ip_mask_int.s_addr = 0;
             this->index = -1;
@@ -197,10 +226,14 @@ public:
         std::string adapter_dec;
         std::string local_ip_address;
         in_addr local_ip_address_int;
+        std::string local_ipv6_address;
+        in6_addr local_ipv6_address_int;
         std::string local_mac_address;
+        unsigned char local_mac_address_int[6];
         std::string gateway_ip_address;
         in_addr gateway_ip_address_int;
         std::string gateway_mac_address;
+        unsigned char gateway_mac_address_int[6];
         std::string subnet_ip_mask;
         in_addr subnet_ip_mask_int;
         std::string dhcp_ip_address;
@@ -309,125 +342,15 @@ public:
     };
 
 public:
-    ~NetworkInfoHelper()
-    {
-    }
-
-    static NetworkInfoHelper& GetInstance()
-    {
-        static NetworkInfoHelper instance;
-        return instance;
-    }
-
-    /**
-    *get the current using network name
-    */
-    std::string GetNetWorkName()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-
-        std::string work_name;
-#if defined(_MSC_VER)
-        if (m_cur_network_info.is_wifi)
-        {
-            work_name = m_cur_network_info.wifi_info.ssid;
-        }
-        else
-        {
-            work_name = m_cur_network_info.adapt_info.adapter_dec;
-        }
-#elif defined(__GNUC__)
-        work_name = m_cur_network_info.adapt_info.adapter_name;
-#else
-#error unsupported compiler
-#endif
-        return work_name;
-    }
-
-    /**
-    *get the current gateway mac
-    */
-    std::string GetGatewayMac()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-
-        if (!m_cur_network_info.adapt_info.gateway_mac_address.empty())
-        {
-            return m_cur_network_info.adapt_info.gateway_mac_address;
-        }
-
-        if (m_cur_network_info.adapt_info.gateway_ip_address.empty())
-        {
-            return "";
-        }
-
-        m_cur_network_info.adapt_info.gateway_mac_address = GetMacFromAddress(m_cur_network_info.adapt_info.gateway_ip_address_int, 3000, m_cur_network_info.adapt_info.index, m_cur_network_info.adapt_info.local_ip_address_int);
-        return m_cur_network_info.adapt_info.gateway_mac_address;
-    }
-
-    /**
-    *get the previous gateway mac
-    */
-    std::string GetPreNetworkGatewayMac()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-        return m_pre_network_info.adapt_info.gateway_mac_address;
-    }
-
-    /**
-    *is current network connect to the internet
-    */
-    bool IsConnectToInternet()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-#if defined(_MSC_VER)
-        return m_cur_network_info.category_info.is_connect_to_internet == -1 ? true : false;
-#elif defined(__GNUC__)
-#else
-#error unsupported compiler
-#endif
-        return false;
-    }
-
-    /**
-    *when the network has changed, you should invoke this to update the network cache before you invoke GetNetworkInfo
-    *is_network_change[out] if the network has changed since you invoke UpadteNetworkInfo last time
-    *note: if you have use NLMHelper register the network change listener, it will update network info auto
-    */
-    void UpadteNetworkInfo(bool &is_network_change);
-
-    /**
-    *show if current using network is wifi
-    */
-    bool IsWifi()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-        return m_cur_network_info.is_wifi;
-    }
-
-    /**
-    *get the network info of current network, wifi first, only one connect network will return, see UpadteNetworkInfo for more information
-    */
-    NetworkInfo GetNetworkInfo()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-        return m_cur_network_info;
-    }
-
+    static NetworkInfoHelper& GetInstance();
     /**
     *get all the network info that connect to the internet
+    *infos[in] the network info buf, you can input null to get need size
+    *count[in] the network info buf count
+    *need_gateway_mac(in): is need resolve gateway mac addr
+    *return valide size
     */
-    static u_int GetAllNetworkInfo(NetworkInfo *infos, u_int count);
-
-    /**
-    *get the previous network info, see UpadteNetworkInfo for more information
-    */
-    NetworkInfo GetPreNetworkInfo()
-    {
-        std::unique_lock<std::mutex> lck(m_netowrk_info_lock);
-        return m_pre_network_info;
-    }
-
+    static u_int GetAllNetworkInfo(NetworkInfo *infos, u_int count, bool need_gateway_mac = true);
     /**
     *use arp protocol to fine the mac of ip
     *ip[in] the ip that you want to find the mac
@@ -447,8 +370,8 @@ public:
     */
     static std::string GetMacFromAddress(const in_addr& _ip, u_int timeout = 3000, int eth_index = -1, const in_addr& src_ip = { 0 });
     /**
-    *get the eth index of the ip 
-    *ip[in] the ip that you want to find the eth index 
+    *get the eth index of the ip
+    *ip[in] the ip that you want to find the eth index
     *return -1 for error
     */
     static int GetEthIndexFromAddress(const std::string& ip);
@@ -458,8 +381,67 @@ public:
     *return -1 for error
     */
     static int GetEthIndexFromAddress(const in_addr& _ip);
-
-
+    /**
+    *get all the route info
+    *info[in] the routeinfo buf, you can input null to get need size
+    *count[in] the routeinfo buf count
+    *return valide size
+    */
+    static u_int GetAllRouteInfo(RouteInfo *infos, u_int count);
+    /**
+    *get the route info of dst
+    *route(out): the route that choose
+    *dst(in): dst ip
+    *return true for success
+    */
+    static bool GetDstRoute(Route &route, const in_addr &dst);
+    /**
+    *get the route info of dst
+    *route(out): the route that choose
+    *dst(in): dst ip
+    *return true for success
+    */
+    static bool GetDstRoute(Route &route, int dst);
+    /**
+    *get the specify ip network info
+    *ip(in): the ip
+    *use_mask(in): is use netmask to choose the interface
+    *need_gateway_mac(in): is need resolve gateway mac addr
+    */
+    static NetworkInfo GetNetworkInfoByIp(u_int ip, bool use_mask, bool need_gateway_mac = true);
+    /**
+    *get the specify ip adapt info
+    *ip(in): the ip
+    *use_mask(in): is use netmask to choose the interface
+    *need_gateway_mac(in): is need resolve gateway mac addr
+    */
+    static AdaptInfo GetAdaptInfoByIp(u_int ip, bool use_mask, bool need_gateway_mac = true);
+    /**
+    *get all device under specify network
+    *network_info(in): network need to discover devices
+    *return a map of ip:mac
+    */
+    static std::map<std::string, std::string> GetAllNeighborDevices(const NetworkInfo &network_info);
+    /**
+    *callback of async fun GetAllNeighborDevices
+    *ip(in): the device ip
+    *mac(in): the device mac
+    *last(in): is the last device, will not callback any other device, when true, ip mac may be empty
+    *if callback return false, the get devices action will be stop and you will not recv callback any more
+    */
+    typedef bool(*GetDevicesCallBack)(const std::string &ip, const std::string &mac, bool last);
+    /**
+    *get all device under specify network
+    *network_info(in): network need to discover devices
+    *callback(in): callback of recv result
+    */
+    static bool GetAllNeighborDevices(const NetworkInfo &network_info, GetDevicesCallBack callback);
+    /**
+    *get the ipv6 addr from the specify ipv4 addr eth
+    *ipv6(out): ipv6
+    *index(in): eth index
+    */
+    static bool GetIpv6ByIndex(in6_addr &ipv6, u_int index);
 #if defined(_MSC_VER)
     /**
     *get the process id of specify process name
@@ -490,22 +472,49 @@ public:
     */
     static u_int SendARP(u_int DestIP, u_int SrcIP, u_char *mac, u_long *len, u_int timeout = 3000);
     /**
-    *get the specify ip network info
-    *ip(in): the ip
-    *use_mask(in): is use netmask to choose the interface
-    */
-    static NetworkInfo GetNetworkInfoByIp(u_int ip, bool use_mask);
-    /**
-    *get all the route info
-    */
-    static u_int GetRouteInfo(RouteInfo *info, u_int size);
-    /**
     *get default gateway
     */
     static bool GetDefaultGateway(u_int &ip, u_int &eth_index);
 #else
 #error unsupported compiler
 #endif
+
+public:
+    ~NetworkInfoHelper();
+    /**
+    *get the current using network name
+    */
+    std::string GetNetWorkName();
+    /**
+    *get the current gateway mac
+    */
+    std::string GetGatewayMac();
+    /**
+    *get the previous gateway mac
+    */
+    std::string GetPreNetworkGatewayMac();
+    /**
+    *is current network connect to the internet
+    */
+    bool IsConnectToInternet();
+    /**
+    *when the network has changed, you should invoke this to update the network cache before you invoke GetNetworkInfo
+    *is_network_change[out] if the network has changed since you invoke UpadteNetworkInfo last time
+    *note: if you have use NLMHelper register the network change listener, it will update network info auto
+    */
+    void UpadteNetworkInfo(bool &is_network_change);
+    /**
+    *show if current using network is wifi
+    */
+    bool IsWifi();
+    /**
+    *get the network info of current network, wifi first, only one connect network will return, see UpadteNetworkInfo for more information
+    */
+    NetworkInfo GetNetworkInfo();
+    /**
+    *get the previous network info, see UpadteNetworkInfo for more information
+    */
+    NetworkInfo GetPreNetworkInfo();
 
 private:
 #if defined(_MSC_VER)
@@ -520,22 +529,19 @@ private:
     static void GenerateArpRequestPacket(ArpPacket &pack, u_int dest_iP, u_int src_iP, std::string src_mac);
     static int ReadNlSock(int sockFd, char *bufPtr, int buf_size, int seqNum, int pId);
     static bool ParseOneRoute(struct nlmsghdr *nlHdr, RouteInfo *rtInfo);
+    static u_int IfNameToIndex(const std::string &name);
 #else
 #error unsupported compiler
 #endif
     static u_int GetAllWifiInfo(WifiInfo *infos, u_int count);
-    static u_int GetAllAdaptInfo(AdaptInfo *infos, u_int count);
-    static CategoryInfo GetCategoryInfo(const GUID &guid);
+    static u_int GetAllAdaptInfo(AdaptInfo *infos, u_int count, bool need_gateway_mac = true);
+    static CategoryInfo GetCategoryInfo(const GUID &guid, u_int max_wait_time = 3 * 1000);
 
 private:
+    NetworkInfoHelper();
     void GetAdaptInfo();
     bool GetWifiInfo();
     void AdaptGatewayMacAddress();
-    NetworkInfoHelper()
-    {
-        bool is_network_changed;
-        UpadteNetworkInfo(is_network_changed);
-    }
 
 private:
     static std::mutex m_netowrk_info_lock;

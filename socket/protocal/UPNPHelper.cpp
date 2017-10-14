@@ -42,7 +42,7 @@ bool UPNPHelper::SendUPNPSearchRequest()
 
 bool UPNPHelper::RecvNextUPNPData(std::string &from_ip, std::string &location)
 {
-    static char recvbuf[UPNP_RESPONCE_BUFSIZE] = { 0 };
+    char recvbuf[UPNP_RESPONCE_BUFSIZE] = { 0 };
 
     SOCKET fd = GetSocket();
     if (fd == -1) return false;
@@ -68,7 +68,7 @@ bool UPNPHelper::RecvNextUPNPData(std::string &from_ip, std::string &location)
         if (!CheckUPNPResponcevalidity(recvbuf, size))
         {
 #ifdef DEBUG
-            std::cout << __FUNCTION__ << " CheckMDNSResponcevalidity failed! " << std::endl;
+            std::cout << __FUNCTION__ << " CheckUPNPResponcevalidity failed! " << std::endl;
 #endif // DEBUG
             continue;
         }
@@ -78,7 +78,7 @@ bool UPNPHelper::RecvNextUPNPData(std::string &from_ip, std::string &location)
         if (!DealUPNPData(location, recvbuf, size))
         {
 #ifdef DEBUG
-            std::cout << __FUNCTION__ << " DealMDNSResponce failed! " << std::endl;
+            std::cout << __FUNCTION__ << " DealUPNPData failed! " << std::endl;
 #endif // DEBUG
             return false;
         }
@@ -96,7 +96,7 @@ bool UPNPHelper::CheckUPNPResponcevalidity(char *data, int size)
         return false;
     } 
 
-    if (size < std::min(sizeof(upnp_resp_headline), sizeof(upnp_notify_headline)))
+    if ((size_t)size < std::min(sizeof(upnp_resp_headline), sizeof(upnp_notify_headline)))
     {
         return false;
     }
@@ -144,6 +144,7 @@ bool UPNPHelper::DealUPNPData(std::string &location, char *data, int size)
                 if (StringHelper::toupper(std::string(line.c_str(), sizeof(cmp_location) - 1)) == cmp_location)
                 {
                     location = std::string(line.c_str() + sizeof(cmp_location) - 1);
+                    location = StringHelper::trim(location);
                     return true;
                 }
             }

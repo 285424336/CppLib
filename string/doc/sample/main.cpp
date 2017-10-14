@@ -5,6 +5,7 @@
 #include <windows.h>
 #include <string\StringHelper.h>
 #include <file\FileHelper.h>
+#include <string\Lang.h>
 #elif defined(__GNUC__)
 #include <string/StringHelper.h>
 #include <file/FileHelper.h>
@@ -212,13 +213,15 @@ void wchartoutf8Test()
         std::string name = "Âí³¿½ã";
 #if defined(_MSC_VER)
         std::string utf8 = StringHelper::wchartoutf8(StringHelper::towchar(name, "chs"));
+        FileHelper::SetFileContent("utf8.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-8: " << StringHelper::tochar(StringHelper::utf8towchar(utf8), "chs") << std::endl;
 #elif defined(__GNUC__)
         std::string utf8 = StringHelper::wchartoutf8(StringHelper::towchar(name, "zh_CN.UTF-8"));
+        FileHelper::SetFileContent("utf8.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-8: " << StringHelper::tochar(StringHelper::utf8towchar(utf8), "zh_CN.UTF-8") << std::endl;
 #else
 #error unsupported compiler
 #endif
-        FileHelper::SetFileContent("utf8.txt", utf8.c_str(), utf8.size());
-        std::cout << "local: " << name << " utf-8: " << utf8 << std::endl;
     }
 }
 
@@ -230,6 +233,171 @@ void utf8towcharTest()
         std::cout << StringHelper::tochar(StringHelper::utf8towchar(FileHelper::GetFileContent("utf8.txt")), "chs") << std::endl;
 #elif defined(__GNUC__)
         std::cout << StringHelper::tochar(StringHelper::utf8towchar(FileHelper::GetFileContent("utf8.txt")), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void wchartoutf7Test()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+        std::string name = "Âí³¿½ã";
+#if defined(_MSC_VER)
+        std::string utf8 = StringHelper::wchartoutf7(StringHelper::towchar(name, "zh-CN"));
+        FileHelper::SetFileContent("utf7.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-7: " << StringHelper::tochar(StringHelper::utf7towchar(utf8), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::string utf8 = StringHelper::wchartoutf7(StringHelper::towchar(name, "zh_CN.UTF-8"));
+        FileHelper::SetFileContent("utf7.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-7: " << StringHelper::tochar(StringHelper::utf7towchar(utf8), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void utf7towcharTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+#if defined(_MSC_VER)
+        std::cout << StringHelper::tochar(StringHelper::utf7towchar(FileHelper::GetFileContent("utf7.txt")), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::cout << StringHelper::tochar(StringHelper::utf7towchar(FileHelper::GetFileContent("utf7.txt")), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void wchartoutf16leTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+        std::string name = "Âí³¿½ã";
+#if defined(_MSC_VER)
+        std::string utf8 = StringHelper::wchartoutf16le(StringHelper::towchar(name, "zh-CN"));
+        FileHelper::SetFileContent("utf16le.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-16le: " << StringHelper::tochar(StringHelper::utf16letowchar(utf8), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::string utf8 = StringHelper::wchartoutf16le(StringHelper::towchar(name, "zh_CN.UTF-8"));
+        FileHelper::SetFileContent("utf16le.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-16le: " << StringHelper::tochar(StringHelper::utf16letowchar(utf8), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void utf16letowcharTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+#if defined(_MSC_VER)
+        std::cout << StringHelper::tochar(StringHelper::utf16letowchar(FileHelper::GetFileContent("utf16le.txt")), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::cout << StringHelper::tochar(StringHelper::utf16letowchar(FileHelper::GetFileContent("utf16le.txt")), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void wchartoutf16beTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+        std::string name = "Âí³¿½ã";
+#if defined(_MSC_VER)
+        std::string utf8 = StringHelper::wchartoutf16be(StringHelper::towchar(name, "zh-CN"));
+        FileHelper::SetFileContent("utf16be.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-16be: " << StringHelper::tochar(StringHelper::utf16betowchar(utf8), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::string utf8 = StringHelper::wchartoutf16be(StringHelper::towchar(name, "zh_CN.UTF-8"));
+        FileHelper::SetFileContent("utf16be.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-16be: " << StringHelper::tochar(StringHelper::utf16betowchar(utf8), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void utf16betowcharTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+#if defined(_MSC_VER)
+        std::cout << StringHelper::tochar(StringHelper::utf16betowchar(FileHelper::GetFileContent("utf16be.txt")), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::cout << StringHelper::tochar(StringHelper::utf16betowchar(FileHelper::GetFileContent("utf16be.txt")), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void wchartoutf32leTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+        std::string name = "Âí³¿½ã";
+#if defined(_MSC_VER)
+        std::string utf8 = StringHelper::wchartoutf32le(StringHelper::towchar(name, "zh-CN"));
+        FileHelper::SetFileContent("utf32le.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-32le: " << StringHelper::tochar(StringHelper::utf32letowchar(utf8), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::string utf8 = StringHelper::wchartoutf32le(StringHelper::towchar(name, "zh_CN.UTF-8"));
+        FileHelper::SetFileContent("utf32le.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-32le: " << StringHelper::tochar(StringHelper::utf32letowchar(utf8), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void utf32letowcharTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+#if defined(_MSC_VER)
+        std::cout << StringHelper::tochar(StringHelper::utf32letowchar(FileHelper::GetFileContent("utf32le.txt")), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::cout << StringHelper::tochar(StringHelper::utf32letowchar(FileHelper::GetFileContent("utf32le.txt")), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void wchartoutf32beTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+        std::string name = "Âí³¿½ã";
+#if defined(_MSC_VER)
+        std::string utf8 = StringHelper::wchartoutf32be(StringHelper::towchar(name, "zh-CN"));
+        FileHelper::SetFileContent("utf32be.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-32be: " << StringHelper::tochar(StringHelper::utf32betowchar(utf8), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::string utf8 = StringHelper::wchartoutf32be(StringHelper::towchar(name, "zh_CN.UTF-8"));
+        FileHelper::SetFileContent("utf32be.txt", utf8.c_str(), utf8.size());
+        std::cout << "local: " << name << " utf-32be: " << StringHelper::tochar(StringHelper::utf32betowchar(utf8), "zh_CN.UTF-8") << std::endl;
+#else
+#error unsupported compiler
+#endif
+    }
+}
+
+void utf32betowcharTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    {
+#if defined(_MSC_VER)
+        std::cout << StringHelper::tochar(StringHelper::utf32betowchar(FileHelper::GetFileContent("utf32be.txt")), "zh-CN") << std::endl;
+#elif defined(__GNUC__)
+        std::cout << StringHelper::tochar(StringHelper::utf32betowchar(FileHelper::GetFileContent("utf32be.txt")), "zh_CN.UTF-8") << std::endl;
 #else
 #error unsupported compiler
 #endif
@@ -254,6 +422,34 @@ void Byte2BaseStrTest()
     std::cout << StringHelper::byte2basestr((u_char *)buf, sizeof(buf), "", StringHelper::oct, 3) << std::endl;
 }
 
+void GetStaticStringTest()
+{
+    static std::mutex out_lock;
+    std::string s1 = "abc";
+    const char *data1 = StringHelper::getstaticstring(s1);
+    const char *data2 = StringHelper::getstaticstring(s1);
+
+    std::string s2 = "def";
+    const char *data3 = StringHelper::getstaticstring(s2);
+    const char *data4 = StringHelper::getstaticstring(s2);
+    const char *data5 = StringHelper::getstaticstring("%08lx", 16);
+    {
+        std::unique_lock<std::mutex> lock(out_lock);
+        std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+        std::cout << "data1: " << (size_t)data1 << " data2: " << (size_t)data2 << std::endl;
+        std::cout << "data1: " << data1 << " data2: " << data2 << std::endl;
+        std::cout << "data3: " << (size_t)data3 << " data4: " << (size_t)data4 << std::endl;
+        std::cout << "data3: " << data3 << " data4: " << data4 << std::endl;
+        std::cout << "data5: " << data5 << std::endl;
+    }
+}
+
+void DefaultLocaleTest()
+{
+    std::cout << __FUNCTION__ << "***********TEST************" << std::endl;
+    std::cout << "default locale " << StringHelper::defaultlocale() << std::endl;
+}
+
 int main()
 {
     SignedTypeCheckTest();
@@ -263,11 +459,22 @@ int main()
     ReplaceTest();
     ToUpperTest();
     ToLowerTest();
+    DefaultLocaleTest();
     ToCharTest();
     ToWCharTest();
-    Hex2ByteTest();
-    Byte2BaseStrTest();
     wchartoutf8Test();
     utf8towcharTest();
+    wchartoutf7Test();
+    utf7towcharTest();
+    wchartoutf16leTest();
+    utf16letowcharTest();
+    wchartoutf16beTest();
+    utf16betowcharTest();
+    wchartoutf32leTest();
+    utf32letowcharTest();
+    wchartoutf32beTest();
+    utf32betowcharTest();
+    Hex2ByteTest();
+    Byte2BaseStrTest();
     return 0;
 }

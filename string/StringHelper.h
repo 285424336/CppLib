@@ -8,6 +8,9 @@
 #include <iomanip>
 #include <sstream>
 #include <typeinfo>
+#include <mutex>
+#include <set>
+#include <map>
 
 #define HEX_STR_TO_NUM(c) (((0X40&(c))>>6)*9+(0X0F&(c))) //you must make sure the c is hex str
 
@@ -16,12 +19,18 @@
 #define THROW(x) throw(...)
 #endif // !THROW
 #elif defined(__GNUC__)
+#include <string.h>
 #ifndef THROW
 #define THROW(x) throw(x)
 #endif // !THROW
 #else
 #error unsupported compiler
 #endif
+
+#define CP_UTF16LE 1200
+#define CP_UTF16BE 1201
+#define CP_UTF32LE 12000
+#define CP_UTF32BE 12001
 
 class StringHelper
 {
@@ -54,15 +63,30 @@ public:
     */
     static std::string& trim(std::string &s);
     /**
+    *remove the blank at both end of the string
+    *s(in): the string that you want to rm the blank
+    */
+    static std::string trim(const std::string &s);
+    /**
     *remove the blank at right end of the string
     *s(in): the string that you want to rm the blank at right end
     */
     static std::string& rtrim(std::string &s);
     /**
+    *remove the blank at right end of the string
+    *s(in): the string that you want to rm the blank at right end
+    */
+    static std::string rtrim(const std::string &s);
+    /**
     *remove the blank at left end of the string
     *s(in): the string that you want to rm the blank at left end
     */
     static std::string& ltrim(std::string &s);
+    /**
+    *remove the blank at left end of the string
+    *s(in): the string that you want to rm the blank at left end
+    */
+    static std::string ltrim(const std::string &s);
     /**
     *split the string with the delim
     *s(in): the string you want to split with the delim
@@ -107,18 +131,10 @@ public:
     */
     static std::string& toupper(std::string &str)
     {
-        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+        std::transform(str.begin(), str.end(), str.begin(), [](const char c) { return static_cast<char>(::toupper(c)); });
         return str;
     }
-    /**
-    *upcase the string
-    *str(in): the string that you want to deal
-    */
-    static std::string&& toupper(std::string &&str)
-    {
-        std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-        return std::move(str);
-    }
+
     /**
     *upcase the string
     *str(in): the string that you want to deal
@@ -126,7 +142,7 @@ public:
     static std::string toupper(const std::string &str)
     {
         std::string result = str;
-        std::transform(result.begin(), result.end(), result.begin(), ::toupper);
+        std::transform(str.begin(), str.end(), result.begin(), [](const char c) { return static_cast<char>(::toupper(c)); });
         return result;
     }
     /**
@@ -135,18 +151,10 @@ public:
     */
     static std::string& tolower(std::string &str)
     {
-        std::transform(str.begin(), str.end(), str.begin(), ::tolower);
+        std::transform(str.begin(), str.end(), str.begin(), [](const char c) { return static_cast<char>(::tolower(c)); });
         return str;
     }
-    /**
-    *lowcase the string
-    *str(in): the string that you want to deal
-    */
-    static std::string&& tolower(std::string &&str)
-    {
-        std::transform(str.begin(), str.end(), str.begin(), ::tolower);
-        return std::move(str);
-    }
+    
     /**
     *lowcase the string
     *str(in): the string that you want to deal
@@ -154,29 +162,89 @@ public:
     static std::string tolower(const std::string &str)
     {
         std::string result = str;
-        std::transform(result.begin(), result.end(), result.begin(), ::tolower);
+        std::transform(str.begin(), str.end(), result.begin(), [](const char c) { return static_cast<char>(::tolower(c)); });
         return result;
     }
     /**
+    *get default user locale
+    */
+    static std::string defaultlocale();
+    /**
+    *change multi char to wchar by using charset, like HTTP resp
+    *str(in): the multi need to convert
+    *charset(in): the charset of the str in http header, like"Content-Type: text/html; charset=utf-8", if empty use default locale 
+    */
+    static std::wstring towcharbycharset(const std::string &str, const std::string &charset = "UTF-8");
+    /**
     *change multi char to wchar, using specify charactor set to convert, it is strict
     *str(in): the multi need to convert
-    *locale(in): the language of the string£¬use it to decode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C", use NULL for defalut
+    *locale(in): the language of the string£¬use it to decode, chinese is windows"zh_CN" linux"zh_CN.UTF-8", english is "C", use NULL for user locale
     */
-    static std::wstring towchar(const std::string &str, const char *locale = NULL);
+    static std::wstring towchar(const std::string &str, const char *locale);
     /**
     *change wchar to multi char , using specify charactor set to convert, it is strict
     *wstr(in): the multi need to convert
-    *locale(in): the language of the string£¬use it to encode, chinese is windows"chs" linux"zh_CN.UTF-8", english is "C", use NULL for defalut
+    *locale(in): the language of the string£¬use it to encode, chinese is windows"zh_CN" linux"zh_CN.UTF-8", english is "C", use NULL for user locale
     */
-    static std::string tochar(const std::wstring &wstr, const char *locale = NULL);
+    static std::string tochar(const std::wstring &wstr, const char *locale);
+    /**
+    *change multi char to wchar, using specify charactor set to convert, it is strict
+    *str(in): the multi need to convert
+    */
+    static std::wstring towchar(const std::string &str);
+    /**
+    *change wchar to multi char , using specify charactor set to convert, it is strict
+    *wstr(in): the multi need to convert
+    */
+    static std::string tochar(const std::wstring &wstr);
     /**
     *convert the utf8 string to wchar
     */
-    static std::wstring utf8towchar(const std::string &str_utf8);
+    static std::wstring utf8towchar(const std::string &str);
     /**
     *convert the wchar string to utf8
     */
     static std::string wchartoutf8(const std::wstring &wstr);
+    /**
+    *convert the utf7 string to wchar
+    */
+    static std::wstring utf7towchar(const std::string &str);
+    /**
+    *convert the wchar string to utf7
+    */
+    static std::string wchartoutf7(const std::wstring &wstr);
+    /**
+    *convert the utf16le string to wchar
+    */
+    static std::wstring utf16letowchar(const std::string &str);
+    /**
+    *convert the wchar string to utf16le
+    */
+    static std::string wchartoutf16le(const std::wstring &wstr);
+    /**
+    *convert the utf16be string to wchar
+    */
+    static std::wstring utf16betowchar(const std::string &str);
+    /**
+    *convert the wchar string to utf16be
+    */
+    static std::string wchartoutf16be(const std::wstring &wstr);
+    /**
+    *convert the utf32le string to wchar
+    */
+    static std::wstring utf32letowchar(const std::string &str);
+    /**
+    *convert the wchar string to utf32le
+    */
+    static std::string wchartoutf32le(const std::wstring &wstr);
+    /**
+    *convert the utf32be string to wchar
+    */
+    static std::wstring utf32betowchar(const std::string &str);
+    /**
+    *convert the wchar string to utf32be
+    */
+    static std::string wchartoutf32be(const std::wstring &wstr);
 
     /**
     *convert string to other type
@@ -225,7 +293,98 @@ public:
     *upcase(in): the hex string should be upcase
     */
     static std::string byte2basestr(const unsigned char* byte, const size_t &byte_size, const std::string &delim = std::string(), const io_base base = hex, const size_t width = 0,const char fill = '0', bool upcase = true);
-    
+    /**
+    *get a stable string copy of the input, the return string will not loss all the program life.
+    *s(in): string input format, like "%s"
+    *args(in): args for s
+    *return a ptr to the string which is equal to the input
+    */
+    template<typename ... Types>
+    static const char* getstaticstring(const char *s, Types... args)
+    {
+        static std::set<std::string> pool;
+        static std::mutex pool_lock;
+        char buf[4096];
+        if (s == NULL) {
+            return NULL;
+        }
+        snprintf(buf, sizeof(buf), s, args...);
+        buf[sizeof(buf) - 1] = 0;
+        std::unique_lock<std::mutex> lock(pool_lock);
+        std::pair<std::set<std::string>::iterator, bool> pair = pool.insert(buf);
+        return pair.first->c_str();
+    }
+    /**
+    *get a stable string copy of the input, the return string will not loss all the program life.
+    *s(in): string input
+    *return a ptr to the string which is equal to the input
+    */
+    static const char* getstaticstring(const std::string &s)
+    {
+        return getstaticstring(s.c_str());
+    }
+
+    /**
+    *change the unable print string to \xFF format
+    *s(in): string need to change
+    *return print able string
+    */
+    static std::string escapeunableprint(const std::string &s)
+    {
+        std::string r;
+
+        for (unsigned int i = 0; i < s.size(); i++) {
+            char buf[5];
+            unsigned char c = s[i];
+            // Printable and some whitespace ok. "\r" not ok because it overwrites the line.
+            if (c == '\t' || c == '\n' || (0x20 <= c && c <= 0x7e)) {
+                r += c;
+            }
+            else {
+                snprintf(buf, sizeof(buf), "\\x%02X", c);
+                r += buf;
+            }
+        }
+        return r;
+    }
+
+#if defined(_MSC_VER)
+    /**
+    *change multi byte str to wchar str
+    *str(in): multi byte str
+    *code_page(in): using code page, like CP_ACP
+    */
+    static std::wstring transbytestowchar(const std::string &str, unsigned int code_page);
+    /**
+    *change wchar str to multi byte str
+    *wstr(in): wchar str
+    *code_page(in): using code page, like CP_ACP
+    */
+    static std::string wchartotransbytes(const std::wstring &wstr, unsigned int code_page);
+#elif defined(__GNUC__)
+    /**
+    *change multi byte str to wchar str
+    *str(in): multi byte str
+    *character(in): character of str, like UTF-8
+    */
+    static std::wstring transbytestowchar(const std::string &str, const std::string &character);
+    /**
+    *change wchar str to multi byte str
+    *wstr(in): wchar str
+    *character(in): character of dst str, like UTF-8
+    */
+    static std::string wchartotransbytes(const std::wstring &wstr, const std::string &character);
+    /**
+    *change multi byte str to multi byte str
+    *str(in): multi byte str
+    *f_character(in): character of str, like zh_CN
+    *t_character(in): character of dst str, like UTF-8
+    */
+    static std::string transbytestotransbytes(const std::string &str, const std::string &f_character, const std::string &t_character);
+#else
+#error unsupported compiler
+#endif
+
 private:
     template<class _Elem,class _Traits>
     static std::basic_ostream<_Elem, _Traits>& changebase(std::basic_ostream<_Elem, _Traits>& ostream, const io_base base)
@@ -275,6 +434,10 @@ private:
             return ret;
         }
     };
+
+private:
+    static std::map<std::string, std::string> html_charset_to_locale_map;
+    static std::mutex char_wchar_lock;
 };
 
 template<>

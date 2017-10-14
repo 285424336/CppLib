@@ -62,12 +62,61 @@ int main()
     //    ms_count += 10;
     //}
 
+#if defined(_MSC_VER)
+    WORD wVersion;
+    WSADATA WSAData;
+    wVersion = MAKEWORD(2, 2);
+    WSAStartup(wVersion, &WSAData);
+#elif defined(__GNUC__)
+#else
+#error unsupported compiler
+#endif
+
+    u_int route_count = NetworkInfoHelper::GetAllRouteInfo(NULL, 0);
+    if (route_count)
+    {
+        NetworkInfoHelper::RouteInfo *route_infos = new (std::nothrow) NetworkInfoHelper::RouteInfo[route_count];
+        if (route_infos != NULL)
+        {
+            route_count = NetworkInfoHelper::GetAllRouteInfo(route_infos, route_count);
+            std::cout << "route info*****************************" << std::endl;
+            for (int i = 0; i < route_count; i++) {
+                std::cout << "[" << i << "]" << std::endl;
+                std::cout << "dst ip: " << NetworkHelper::IPAddr2Str(route_infos[i].dstAddr) << std::endl;
+                std::cout << "dst mask: " << NetworkHelper::IPAddr2Str(route_infos[i].dstmask) << std::endl;
+                std::cout << "gateway ip: " << NetworkHelper::IPAddr2Str(route_infos[i].gateWay) << std::endl;
+                std::cout << "src ip: " << NetworkHelper::IPAddr2Str(route_infos[i].srcAddr) << std::endl;
+                std::cout << "metric: " << route_infos[i].metric << std::endl;
+                std::cout << "index: " << route_infos[i].index << std::endl;
+            }
+            delete[]route_infos;
+        }
+    }
+
+    NetworkInfoHelper::Route route = { 0 };
+    std::string dst = "10.168.1.111";
+    if (NetworkInfoHelper::GetDstRoute(route, NetworkHelper::IPStr2Addr(dst)))
+    {
+        std::cout << "route info*****************************" << std::endl;
+        std::cout << "dst ip: " << NetworkHelper::IPAddr2Str(route.dstAddr) << std::endl;
+        std::cout << "src ip: " << NetworkHelper::IPAddr2Str(route.srcAddr) << std::endl;
+        std::cout << "src mac: " << StringHelper::byte2basestr(route.srcMac, 6, ":", StringHelper::hex, 2) << std::endl;
+        std::cout << "index: " << route.index << std::endl;
+    }
+    else
+    {
+        std::cout << "route " << dst << " info get failed!" << std::endl;
+    }
+
+    std::vector<int> ips = NetworkHelper::ResolveName("localhost");
+    for (auto ip : ips)
+    {
+        std::cout << NetworkHelper::IPAddr2Str(ip) << std::endl;
+    }
+    std::cout << NetworkHelper::ResolveAddr(NetworkHelper::IPStr2Addr("127.0.0.1").s_addr) << std::endl;
+
     u_int count = NetworkInfoHelper::GetAllNetworkInfo(NULL, 0);
     NetworkInfoHelper::NetworkInfo *network_infos = new (std::nothrow) NetworkInfoHelper::NetworkInfo[count];
-    for (u_int i = 0; i < count; i++)
-    {
-        new (&network_infos[i]) NetworkInfoHelper::NetworkInfo();
-    }
     count = NetworkInfoHelper::GetAllNetworkInfo(network_infos, count);
     std::cout << "all using network*******************" << std::endl;
     for (u_int i = 0; i < count; i++)

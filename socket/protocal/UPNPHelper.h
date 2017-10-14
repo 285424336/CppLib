@@ -32,12 +32,8 @@ public:
     /**
     *eth_ip: which eth you want to bind to send upnp multcast, empty for all eth
     */
-    UPNPHelper(u_int src_ip = INADDR_ANY) :MulticastSocket(src_ip, 0, htonl(UPNP_MCAST_ADDR_INT)) {}
+    UPNPHelper(u_int src_ip = INADDR_ANY, u_short src_port = 0) :MulticastSocket(src_ip, src_port, htonl(UPNP_MCAST_ADDR_INT)) {}
     ~UPNPHelper(){}
-    /**
-    *init the socket, you must call this before you other things
-    */
-    bool UPNPInit();
     /**
     *send upnp muiltcast
     */
@@ -49,7 +45,7 @@ public:
     */
     bool RecvNextUPNPData(std::string &from_ip, std::string &location);
 
-private:
+public:
     static sockaddr_in GetUPNPSockaddr();
     static bool CheckUPNPResponcevalidity(char *data, int size);
     static bool DealUPNPData(std::string &location, char *data, int size);

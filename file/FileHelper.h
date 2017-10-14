@@ -181,8 +181,25 @@ public:
     /**
     *get the file content
     *file_path(in): the file path
+    *buf(in): the file content buf to set, can be null, just to make sure the file exist
+    *buf_size(in): the buf size
+    *append(in): append to the file content
     */
     static bool SetFileContent(const std::string& file_path, const char *buf, size_t buf_size, bool append = false);
+
+    /**
+    *get the file content
+    *file_path(in): the file path
+    *content(in): the file content buf to set, can be empty, just to make sure the file exist
+    *append(in): append to the file content
+    */
+    static bool SetFileContent(const std::string& file_path, const std::string &content, bool append = false);
+
+    /**
+    *clear the file content
+    *file_path(in): the file path
+    */
+    static bool ClearFileContent(const std::string& file_path);
 
 #if defined(_MSC_VER)
     /**

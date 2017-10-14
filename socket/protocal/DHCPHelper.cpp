@@ -60,7 +60,7 @@ bool DHCPHelper::DhcpPackCheck(const char *buf, int buf_len)
         return false;
     }
 
-    ptrUDPHeader = (struct udp_header *)(buf + IPV4_HDR_LEN);
+    ptrUDPHeader = (struct udp_header *)(buf + ptrIPHeader->ihl * 4);
     if (ntohs(ptrUDPHeader->uh_dport) != 67)
     {
         return false;
@@ -70,7 +70,7 @@ bool DHCPHelper::DhcpPackCheck(const char *buf, int buf_len)
         return false;
     }
 
-    ptrDHCPPacket = (struct dhcp_packet_t *)(buf + UDP_PLUS_IP_HDR_LEN);
+    ptrDHCPPacket = (struct dhcp_packet_t *)((char *)ptrUDPHeader + UDP_HDR_LEN);
     if (htonl(ptrDHCPPacket->option_format) != DHCP_MAGIC_COOKIE)
     {
         return false;
@@ -80,8 +80,9 @@ bool DHCPHelper::DhcpPackCheck(const char *buf, int buf_len)
 
 void DHCPHelper::ParseDhcpData(const char *dhcp, int len, DhcpParseResult &res)
 {
-    struct dhcp_packet_t *ptrDHCPPacket = (struct dhcp_packet_t *)(dhcp + UDP_PLUS_IP_HDR_LEN);
     struct ip_header *ptrIPHeader = (struct ip_header *)(dhcp);
+    struct udp_header *ptrUDPHeader = (struct udp_header *)(dhcp + ptrIPHeader->ihl * 4);
+    struct dhcp_packet_t *ptrDHCPPacket = (struct dhcp_packet_t *)((char *)ptrUDPHeader + UDP_HDR_LEN);
     int szUDPData;
     uint8_t *ptrOptionEntity = NULL;
     uint8_t optionEntityLen = 0;

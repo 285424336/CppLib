@@ -3,6 +3,106 @@
 #include <objbase.h>
 #pragma comment(lib,"wbemuuid.lib")
 
+
+WmiQueryObj WMIEasyQuery::str_query_list[] = {
+    { WMI_EASY_QUERY_STR_HOST_NAME, CIMV2_WMI_NAMESPACE , L"SELECT Name FROM Win32_ComputerSystem" , L"Name", false },
+    { WMI_EASY_QUERY_STR_MODEL, CIMV2_WMI_NAMESPACE , L"SELECT Model FROM Win32_ComputerSystem" , L"Model", false },
+    { WMI_EASY_QUERY_STR_VENDOR, CIMV2_WMI_NAMESPACE , L"SELECT Vendor FROM Win32_ComputerSystemProduct" , L"Vendor", false },
+    { WMI_EASY_QUERY_STR_MANUFACTURER, CIMV2_WMI_NAMESPACE,  L"SELECT Manufacturer FROM Win32_ComputerSystem" , L"Manufacturer", false },
+    { WMI_EASY_QUERY_STR_OS_VERSION, CIMV2_WMI_NAMESPACE,  L"SELECT Caption FROM Win32_OperatingSystem" , L"Caption", false },
+    { WMI_EASY_QUERY_STR_CPU_VENDOR, CIMV2_WMI_NAMESPACE,  L"SELECT Name FROM Win32_Processor" , L"Name", false },
+    { WMI_EASY_QUERY_STR_DISK_VENDOR, CIMV2_WMI_NAMESPACE,  L"SELECT Caption FROM Win32_DiskDrive" , L"Caption", false },
+    { WMI_EASY_QUERY_STR_MEMORY_MANUFACTURER, CIMV2_WMI_NAMESPACE,  L"SELECT Manufacturer FROM Win32_PhysicalMemory" , L"Manufacturer", false },
+    { WMI_EASY_QUERY_STR_NETWORK_ADAPTER_VENDOR, CIMV2_WMI_NAMESPACE,  L"SELECT Manufacturer FROM Win32_NetworkAdapter WHERE NetEnabled = 'TRUE'" , L"Manufacturer", true },
+};
+std::map<WMI_EASY_QUERY_STR, std::shared_ptr<WMIEasyQuery>> WMIEasyQuery::str_query_map;
+bool WMIEasyQuery::is_init = WMIEasyQuery::Init();
+
+bool WMIEasyQuery::Init()
+{
+    for (auto str_query : str_query_list)
+    {
+        WMIEasyQuery *query = new WMIEasyQuery(str_query.wszNamespace, str_query.wszQueryStatement, str_query.wszWQLQueryClsObj, str_query.is_volatile);
+        if (query == NULL)
+        {
+            continue;
+        }
+        str_query_map[str_query.index] = std::shared_ptr<WMIEasyQuery>(query);
+    }
+
+    return true;
+}
+
+std::wstring WMIEasyQuery::QueryStr(WMI_EASY_QUERY_STR index)
+{
+    static std::mutex query_lock;
+
+    std::unique_lock<std::mutex> lock(query_lock);
+    if (index >= WMI_EASY_QUERY_STR_MAX)
+    {
+        return L"";
+    }
+    if (str_query_map.find(index) == str_query_map.end())
+    {
+        return L"";
+    }
+    if (!str_query_map[index])
+    {
+        return L"";
+    }
+
+    if (!str_query_map[index]->m_result.empty() && !str_query_map[index]->m_is_volatile)
+    {
+        return str_query_map[index]->m_result;
+    }
+    str_query_map[index]->m_result.clear();
+    WMIHelper wmi(str_query_map[index]->m_wszNamespace);
+    if (!wmi.Connect())
+    {
+        return L"";
+    }
+    if (!wmi.QueryStr(str_query_map[index]->m_result, str_query_map[index]->m_wszQueryStatement, str_query_map[index]->m_wszWQLQueryClsObj))
+    {
+        return L"";
+    }
+    return str_query_map[index]->m_result;
+}
+
+std::vector<std::wstring> WMIEasyQuery::QueryStrList(WMI_EASY_QUERY_STR index)
+{
+    static std::mutex query_lock;
+
+    std::unique_lock<std::mutex> lock(query_lock);
+    if (index >= WMI_EASY_QUERY_STR_MAX)
+    {
+        return std::vector<std::wstring>();
+    }
+    if (str_query_map.find(index) == str_query_map.end())
+    {
+        return std::vector<std::wstring>();
+    }
+    if (!str_query_map[index])
+    {
+        return std::vector<std::wstring>();
+    }
+
+    if (!str_query_map[index]->m_result_list.empty() && !str_query_map[index]->m_is_volatile)
+    {
+        return str_query_map[index]->m_result_list;
+    }
+    str_query_map[index]->m_result_list.clear();
+    WMIHelper wmi(str_query_map[index]->m_wszNamespace);
+    if (!wmi.Connect())
+    {
+        return std::vector<std::wstring>();
+    }
+    if (!wmi.QueryStr(str_query_map[index]->m_result_list, str_query_map[index]->m_wszQueryStatement, str_query_map[index]->m_wszWQLQueryClsObj))
+    {
+        return std::vector<std::wstring>();
+    }
+    return str_query_map[index]->m_result_list;
+}
+
 bool CSink::CreateInstance(IUnknown** pIFace, std::function<HRESULT(CComPtr<IWbemClassObject>)> f)
 {
     CSink *instance = new (std::nothrow) CSink(f);
@@ -282,28 +382,95 @@ HRESULT WMIHelper::ExecQuery(const std::wstring &wszWQLQuery, std::function<HRES
     return E_FAIL;
 }
 
+HRESULT WMIHelper::ExecQueryList(const std::wstring &wszWQLQuery, std::function<HRESULT(CComPtr<IWbemClassObject>)> f)
+{
+    if (m_pSvc == NULL)
+    {
+        return E_FAIL;
+    }
+
+    CComPtr<IEnumWbemClassObject> pEnumerator = NULL;
+    HRESULT hr = m_pSvc->ExecQuery(
+        CComBSTR("WQL"),
+        CComBSTR(wszWQLQuery.c_str()),
+        WBEM_FLAG_FORWARD_ONLY | WBEM_FLAG_RETURN_IMMEDIATELY,
+        NULL,
+        &pEnumerator);
+
+    if ((hr) != WBEM_S_NO_ERROR)
+    {
+        return E_FAIL;
+    }
+
+    bool ret = false;
+    while (pEnumerator)
+    {
+        CComPtr<IWbemClassObject> pclsObj = NULL;
+        ULONG uReturn = 0;
+        HRESULT hr = pEnumerator->Next(WBEM_INFINITE, 1, &pclsObj, &uReturn);
+        if ((S_OK != hr) || (0 == uReturn) || (NULL == pclsObj))
+        {
+            break;
+        }
+
+        hr = f(pclsObj);
+        if (S_OK != hr)
+        {
+            break;
+        }
+        ret = true;
+    }
+    return ret;
+}
+
 bool WMIHelper::QueryStr(std::wstring &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
 {
     HRESULT hr = ExecQuery(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_BSTR:
-            {
-                result = vtClass.bstrVal;
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_BSTR:
+        {
+            result = vtClass.bstrVal;
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
+
+    return SUCCEEDED(hr);
+}
+
+bool WMIHelper::QueryStr(std::vector<std::wstring> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
+{
+    HRESULT hr = ExecQueryList(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
+        {
+            return S_FALSE;
+        }
+        switch (vtClass.vt) {
+        case VT_BSTR:
+        {
+            result.emplace_back(vtClass.bstrVal);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     return SUCCEEDED(hr);
 }
@@ -311,29 +478,59 @@ bool WMIHelper::QueryStr(std::wstring &result, const std::wstring &wszWQLQuery, 
 bool WMIHelper::QueryInt(long long &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
 {
     HRESULT hr = ExecQuery(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_I1:
-            case VT_I2:
-            case VT_I4:
-            case VT_I8:
-            case VT_INT:
-            {
-                result = vtClass.llVal;
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_I1:
+        case VT_I2:
+        case VT_I4:
+        case VT_I8:
+        case VT_INT:
+        {
+            result = vtClass.llVal;
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
+
+    return SUCCEEDED(hr);
+}
+
+bool WMIHelper::QueryInt(std::vector<long long> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
+{
+    HRESULT hr = ExecQueryList(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
+        {
+            return S_FALSE;
+        }
+        switch (vtClass.vt) {
+        case VT_I1:
+        case VT_I2:
+        case VT_I4:
+        case VT_I8:
+        case VT_INT:
+        {
+            result.emplace_back(vtClass.llVal);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     return SUCCEEDED(hr);
 }
@@ -341,29 +538,59 @@ bool WMIHelper::QueryInt(long long &result, const std::wstring &wszWQLQuery, con
 bool WMIHelper::QueryUnInt(unsigned long long &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
 {
     HRESULT hr = ExecQuery(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_UI8:
-            case VT_UI1:
-            case VT_UI2:
-            case VT_UI4:
-            case VT_UINT:
-            {
-                result = vtClass.ullVal;
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_UI8:
+        case VT_UI1:
+        case VT_UI2:
+        case VT_UI4:
+        case VT_UINT:
+        {
+            result = vtClass.ullVal;
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
+
+    return SUCCEEDED(hr);
+}
+
+bool WMIHelper::QueryUnInt(std::vector<unsigned long long> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
+{
+    HRESULT hr = ExecQueryList(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
+        {
+            return S_FALSE;
+        }
+        switch (vtClass.vt) {
+        case VT_UI8:
+        case VT_UI1:
+        case VT_UI2:
+        case VT_UI4:
+        case VT_UINT:
+        {
+            result.emplace_back(vtClass.ullVal);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     return SUCCEEDED(hr);
 }
@@ -371,25 +598,51 @@ bool WMIHelper::QueryUnInt(unsigned long long &result, const std::wstring &wszWQ
 bool WMIHelper::QueryBool(bool &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
 {
     HRESULT hr = ExecQuery(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_BOOL:
-            {
-                result = vtClass.boolVal == -1; 
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_BOOL:
+        {
+            result = (vtClass.boolVal == -1);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
+
+    return SUCCEEDED(hr);
+}
+
+bool WMIHelper::QueryBool(std::vector<bool> &result, const std::wstring &wszWQLQuery, const std::wstring &wszProperty)
+{
+    HRESULT hr = ExecQueryList(wszWQLQuery, [this, &result, &wszProperty](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
+        {
+            return S_FALSE;
+        }
+        switch (vtClass.vt) {
+        case VT_BOOL:
+        {
+            result.emplace_back(vtClass.boolVal == -1);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     return SUCCEEDED(hr);
 }
@@ -397,28 +650,28 @@ bool WMIHelper::QueryBool(bool &result, const std::wstring &wszWQLQuery, const s
 bool WMIHelper::QueryEnum(std::vector<WMIExecValue> &result, const std::wstring &wszWQLQuery)
 {
     HRESULT hr = ExecQuery(wszWQLQuery, [this, &result](CComPtr<IWbemClassObject> pclsObj)
+    {
+        HRESULT hr = pclsObj->BeginEnumeration(WBEM_FLAG_LOCAL_ONLY);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            HRESULT hr = pclsObj->BeginEnumeration(WBEM_FLAG_LOCAL_ONLY);
+            return S_FALSE;
+        }
+
+        do {
+            CComBSTR bstrName;
+            CComVariant Value;
+            CIMTYPE type;
+            LONG lFlavor = 0;
+            hr = pclsObj->Next(0, &bstrName, &Value, &type, &lFlavor);
             if ((hr) != WBEM_S_NO_ERROR)
             {
-                return S_FALSE;
+                break;
             }
-
-            do {
-                CComBSTR bstrName;
-                CComVariant Value;
-                CIMTYPE type;
-                LONG lFlavor = 0;
-                hr = pclsObj->Next(0, &bstrName, &Value, &type, &lFlavor);
-                if ((hr) != WBEM_S_NO_ERROR)
-                {
-                    break;
-                }
-                result.emplace_back(CComVariant2WMIExecValue(Value, std::wstring(bstrName)));
-            } while (WBEM_S_NO_ERROR == hr);
-            pclsObj->EndEnumeration();
-            return S_FALSE;
-        });
+            result.emplace_back(CComVariant2WMIExecValue(Value, std::wstring(bstrName)));
+        } while (WBEM_S_NO_ERROR == hr);
+        pclsObj->EndEnumeration();
+        return S_FALSE;
+    });
 
     return SUCCEEDED(hr);
 }
@@ -490,26 +743,26 @@ bool WMIHelper::NotificationQueryStr(std::wstring &result, const std::wstring &w
     }
 
     HRESULT hr = NotificationExecQuery(wszWQLQuery, hEvent, millTimeOut, [this, &result, &wszProperty, hEvent](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_BSTR:
-            {
-                result = vtClass.bstrVal;
-                SetEvent(hEvent);
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_BSTR:
+        {
+            result = vtClass.bstrVal;
+            SetEvent(hEvent);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     CloseHandle(hEvent);
     return SUCCEEDED(hr);
@@ -524,30 +777,30 @@ bool WMIHelper::NotificationQueryInt(long long &result, const std::wstring &wszW
     }
 
     HRESULT hr = NotificationExecQuery(wszWQLQuery, hEvent, millTimeOut, [this, &result, &wszProperty, hEvent](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_I1:
-            case VT_I2:
-            case VT_I4:
-            case VT_I8:
-            case VT_INT:
-            {
-                result = vtClass.llVal;
-                SetEvent(hEvent);
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_I1:
+        case VT_I2:
+        case VT_I4:
+        case VT_I8:
+        case VT_INT:
+        {
+            result = vtClass.llVal;
+            SetEvent(hEvent);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     CloseHandle(hEvent);
     return SUCCEEDED(hr);
@@ -562,30 +815,30 @@ bool WMIHelper::NotificationQueryUnInt(unsigned long long &result, const std::ws
     }
 
     HRESULT hr = NotificationExecQuery(wszWQLQuery, hEvent, millTimeOut, [this, &result, &wszProperty, hEvent](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_UI8:
-            case VT_UI1:
-            case VT_UI2:
-            case VT_UI4:
-            case VT_UINT:
-            {
-                result = vtClass.ullVal;
-                SetEvent(hEvent);
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_UI8:
+        case VT_UI1:
+        case VT_UI2:
+        case VT_UI4:
+        case VT_UINT:
+        {
+            result = vtClass.ullVal;
+            SetEvent(hEvent);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     CloseHandle(hEvent);
     return SUCCEEDED(hr);
@@ -600,26 +853,26 @@ bool WMIHelper::NotificationQueryBool(bool &result, const std::wstring &wszWQLQu
     }
 
     HRESULT hr = NotificationExecQuery(wszWQLQuery, hEvent, millTimeOut, [this, &result, &wszProperty, hEvent](CComPtr<IWbemClassObject> pclsObj)
+    {
+        CComVariant vtClass;
+        HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            CComVariant vtClass;
-            HRESULT hr = pclsObj->Get(wszProperty.c_str(), 0, &vtClass, NULL, NULL);
-            if ((hr) != WBEM_S_NO_ERROR)
-            {
-                return S_FALSE;
-            }
-            switch (vtClass.vt) {
-            case VT_BOOL:
-            {
-                result = vtClass.boolVal == -1;
-                SetEvent(hEvent);
-                return S_OK;
-            }
-            break;
-            default:
-                break;
-            }
             return S_FALSE;
-        });
+        }
+        switch (vtClass.vt) {
+        case VT_BOOL:
+        {
+            result = vtClass.boolVal == -1;
+            SetEvent(hEvent);
+            return S_OK;
+        }
+        break;
+        default:
+            break;
+        }
+        return S_FALSE;
+    });
 
     CloseHandle(hEvent);
     return SUCCEEDED(hr);
@@ -634,28 +887,28 @@ bool WMIHelper::NotificationQueryEnum(std::vector<WMIExecValue> &result, const s
     }
 
     HRESULT hr = NotificationExecQuery(wszWQLQuery, hEvent, millTimeOut, [this, &result, hEvent](CComPtr<IWbemClassObject> pclsObj)
+    {
+        HRESULT hr = pclsObj->BeginEnumeration(WBEM_FLAG_LOCAL_ONLY);
+        if ((hr) != WBEM_S_NO_ERROR)
         {
-            HRESULT hr = pclsObj->BeginEnumeration(WBEM_FLAG_LOCAL_ONLY);
+            return S_FALSE;
+        }
+
+        do {
+            CComBSTR bstrName;
+            CComVariant Value;
+            CIMTYPE type;
+            LONG lFlavor = 0;
+            hr = pclsObj->Next(0, &bstrName, &Value, &type, &lFlavor);
             if ((hr) != WBEM_S_NO_ERROR)
             {
-                return S_FALSE;
+                break;
             }
-
-            do {
-                CComBSTR bstrName;
-                CComVariant Value;
-                CIMTYPE type;
-                LONG lFlavor = 0;
-                hr = pclsObj->Next(0, &bstrName, &Value, &type, &lFlavor);
-                if ((hr) != WBEM_S_NO_ERROR)
-                {
-                    break;
-                }
-                result.emplace_back(CComVariant2WMIExecValue(Value, std::wstring(bstrName)));
-            } while (WBEM_S_NO_ERROR == hr);
-            pclsObj->EndEnumeration();
-            return S_FALSE;
-        });
+            result.emplace_back(CComVariant2WMIExecValue(Value, std::wstring(bstrName)));
+        } while (WBEM_S_NO_ERROR == hr);
+        pclsObj->EndEnumeration();
+        return S_FALSE;
+    });
 
     CloseHandle(hEvent);
     return SUCCEEDED(hr);
@@ -678,7 +931,7 @@ bool WMIHelper::ExecMethod(WMIExecValue &execRet, const std::wstring& wstrClass,
         CComBSTR bstrClassName = wstrClass.c_str();
         CComPtr<IWbemClassObject> spClass = NULL;
         hr = m_pSvc->GetObjectW(bstrClassName, 0, NULL, &spClass, NULL);
-        if (FAILED(hr) || !spClass) 
+        if (FAILED(hr) || !spClass)
         {
             break;
         }
@@ -692,17 +945,17 @@ bool WMIHelper::ExecMethod(WMIExecValue &execRet, const std::wstring& wstrClass,
         }
 
         CComPtr<IWbemClassObject> spParamsInstance = NULL;
-        if (spInParamsDefinition) 
+        if (spInParamsDefinition)
         {
             hr = spInParamsDefinition->SpawnInstance(0, &spParamsInstance);
-            if (FAILED(hr) || !spParamsInstance) 
+            if (FAILED(hr) || !spParamsInstance)
             {
                 break;
             }
 
-            for (auto it = params.begin(); it != params.end(); it++) 
+            for (auto it = params.begin(); it != params.end(); it++)
             {
-                if (!it->first.empty()) 
+                if (!it->first.empty())
                 {
                     CComVariant value = it->second;
                     hr = spParamsInstance->Put(it->first.c_str(), 0, &value, 0);

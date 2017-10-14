@@ -47,6 +47,7 @@ namespace DNSResponceBody
 #pragma pack(push,1)
 #define MDNS_MCAST_ADDR "224.0.0.251"
 #define MDNS_MCAST_ADDR_INT 0XE00000FB 
+#define MDNS_MCAST_ADDR6 "FF02::FB"
 #define MDNS_MCAST_PORT 5353
 
 #define DNS_RECODE_TYPE_RECODE_NAME 0   //fake type, just for map name
@@ -91,6 +92,7 @@ namespace DNSResponceBody
 #define DNS_RECODE_TYPE_AXFR        252
 #define DNS_RECODE_TYPE_IXFR        251
 #define DNS_RECODE_TYPE_OPT         41
+#define DNS_RECODE_TYPE_HINFO       13
 
 struct DNSHeader
 {
@@ -206,6 +208,17 @@ struct DNSResponceData_Srv
     unsigned char  target; //variable len, end with 0
 };
 
+struct DNSResponceData_A
+{
+    unsigned int ip;
+};
+
+struct DNSResponceHINFO_A
+{
+    unsigned char len;
+    unsigned char info[1];
+};
+
 #pragma pack(pop)
 
 class MDNSHelper : public MulticastSocket
@@ -214,7 +227,8 @@ public:
     typedef std::map<int, std::function<bool(const char *, int, int, int, Json::Value &)>> TypeDataOpType;
 
 public:
-    explicit MDNSHelper(u_int src_ip = INADDR_ANY, u_short src_port = 0):MulticastSocket(src_ip, src_port, htonl(MDNS_MCAST_ADDR_INT)){}
+    explicit MDNSHelper(u_int src_ip = INADDR_ANY, u_short src_port = 0)
+        : MulticastSocket(src_ip, src_port, htonl(MDNS_MCAST_ADDR_INT), SOCKET_DEFALUT_TLL){}
     ~MDNSHelper(){}
     bool SendMDNSRequest(const std::string &server);
     bool RecvNextMDNSResponce(std::string &from_ip, Json::Value &info);
@@ -225,18 +239,44 @@ public:
     static TypeDataOpType RegistTypeDataOp();
     static bool CheckMDNSDataValidity(char *data, int size);
     static bool DealMDNSData(Json::Value &info, char *data, int size);
-
-private:
     static bool GeneraterMDNSQueryPacket(const std::string &server, char *buf, size_t &size);
     static bool EncodeDotStr(const std::string &type, char *byte, size_t &size);
     static bool DecodeDotStr(std::string &type, const char *packet, int size, int &deal_off);
     static bool ParseMdnsPtrdata(const char *data, int size, int pos, int len, Json::Value &names);
     static bool ParseMdnsTextdata(const char *data, int size, int pos, int len, Json::Value &names);
     static bool ParseMdnsSrvdata(const char *data, int size, int pos, int len, Json::Value &names);
+    static bool ParseAdata(const char *data, int size, int pos, int len, Json::Value &names);
+    static bool ParseHINFOdata(const char *data, int size, int pos, int len, Json::Value &names);
 
 private:
     static sockaddr_in m_mdns_addr;
     static TypeDataOpType m_mdns_type_data_op;
+};
+
+class MDNSHelperV6 : public MulticastSocketV6
+{
+public:
+    /**
+    *if_index: choose the index to send and recv mdns
+    *src_port: src port to send and recv mdns
+    */
+    explicit MDNSHelperV6(u_int if_index = 0, u_short src_port = 0)
+        : MulticastSocketV6(src_port, MDNS_MCAST_ADDR6, if_index) {}
+    ~MDNSHelperV6() {}
+    /**
+    *reset the src ip which used to send/recv ipv6 multi packet
+    *src_ip(in): ipv4 str, which can be net ip of the eth, we will use it to find the eth, the ip can be a neighbour ip
+    */
+    virtual void ResetSrcIp(const std::string &src_ip);
+    bool SendMDNSRequest(const std::string &server);
+    bool RecvNextMDNSResponce(std::string &from_ip, Json::Value &info);
+
+public:
+    static sockaddr_in6 GetMDNSSockaddr();
+
+private:
+    static sockaddr_in6 m_mdns_addr;
+    static MDNSHelper::TypeDataOpType m_mdns_type_data_op;
 };
 
 #endif
